@@ -1,0 +1,235 @@
+/**
+ * GitHub Client (PRD-06)
+ *
+ * Handles branch creation, PR management, and webhook processing.
+ */
+
+export interface GitHubConfig {
+  token: string;
+  owner: string;
+  repo: string;
+  defaultBranch: string;
+}
+
+export interface CreatePRInput {
+  title: string;
+  body: string;
+  head: string;  // branch name
+  base: string;  // target branch (usually main)
+  labels?: string[];
+}
+
+export interface PRInfo {
+  number: number;
+  url: string;
+  state: string;
+  merged: boolean;
+}
+
+/**
+ * Parse a GitHub repo URL into owner/repo.
+ */
+export function parseRepoUrl(url: string): { owner: string; repo: string } | null {
+  // Handle: https://github.com/owner/repo, git@github.com:owner/repo.git, owner/repo
+  const httpsMatch = url.match(/github\.com\/([^/]+)\/([^/.]+)/);
+  if (httpsMatch) {
+    return { owner: httpsMatch[1], repo: httpsMatch[2] };
+  }
+
+  const sshMatch = url.match(/github\.com:([^/]+)\/([^/.]+)/);
+  if (sshMatch) {
+    return { owner: sshMatch[1], repo: sshMatch[2] };
+  }
+
+  const simpleMatch = url.match(/^([^/]+)\/([^/]+)$/);
+  if (simpleMatch) {
+    return { owner: simpleMatch[1], repo: simpleMatch[2] };
+  }
+
+  return null;
+}
+
+/**
+ * Create a branch from the default branch.
+ */
+export async function createBranch(
+  config: GitHubConfig,
+  branchName: string
+): Promise<void> {
+  const { owner, repo, token, defaultBranch } = config;
+
+  // Get the SHA of the default branch
+  const refRes = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${defaultBranch}`,
+    { headers: githubHeaders(token) }
+  );
+
+  if (!refRes.ok) {
+    throw new Error(`Failed to get ref for ${defaultBranch}: ${refRes.status}`);
+  }
+
+  const refData = await refRes.json() as { object: { sha: string } };
+  const sha = refData.object.sha;
+
+  // Create the new branch
+  const createRes = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/git/refs`,
+    {
+      method: 'POST',
+      headers: githubHeaders(token),
+      body: JSON.stringify({
+        ref: `refs/heads/${branchName}`,
+        sha,
+      }),
+    }
+  );
+
+  if (!createRes.ok) {
+    const error = await createRes.text();
+    throw new Error(`Failed to create branch ${branchName}: ${createRes.status} ${error}`);
+  }
+}
+
+/**
+ * Create a pull request.
+ */
+export async function createPR(
+  config: GitHubConfig,
+  input: CreatePRInput
+): Promise<PRInfo> {
+  const { owner, repo, token } = config;
+
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/pulls`,
+    {
+      method: 'POST',
+      headers: githubHeaders(token),
+      body: JSON.stringify({
+        title: input.title,
+        body: input.body,
+        head: input.head,
+        base: input.base,
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const error = await res.text();
+    throw new Error(`Failed to create PR: ${res.status} ${error}`);
+  }
+
+  const pr = await res.json() as {
+    number: number;
+    html_url: string;
+    state: string;
+    merged: boolean;
+  };
+
+  // Add labels if specified
+  if (input.labels && input.labels.length > 0) {
+    await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/issues/${pr.number}/labels`,
+      {
+        method: 'POST',
+        headers: githubHeaders(token),
+        body: JSON.stringify({ labels: input.labels }),
+      }
+    );
+  }
+
+  return {
+    number: pr.number,
+    url: pr.html_url,
+    state: pr.state,
+    merged: pr.merged,
+  };
+}
+
+/**
+ * Get PR status.
+ */
+export async function getPRStatus(
+  config: GitHubConfig,
+  prNumber: number
+): Promise<PRInfo> {
+  const { owner, repo, token } = config;
+
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`,
+    { headers: githubHeaders(token) }
+  );
+
+  if (!res.ok) {
+    throw new Error(`Failed to get PR #${prNumber}: ${res.status}`);
+  }
+
+  const pr = await res.json() as {
+    number: number;
+    html_url: string;
+    state: string;
+    merged: boolean;
+  };
+
+  return {
+    number: pr.number,
+    url: pr.html_url,
+    state: pr.state,
+    merged: pr.merged,
+  };
+}
+
+/**
+ * Build PR body with user evidence.
+ */
+export function buildPRBody(
+  taskTitle: string,
+  taskId: string,
+  quotes: string[],
+  acceptanceCriteria: string[],
+  changesSummary: string,
+): string {
+  let body = `## 🎯 ${taskTitle}\n\n`;
+  body += `**Task ID:** ${taskId}\n\n`;
+
+  body += `### 💬 User Evidence\n\n`;
+  for (const quote of quotes.slice(0, 5)) {
+    body += `> "${quote}"\n\n`;
+  }
+
+  body += `### ✅ Acceptance Criteria\n\n`;
+  for (const criterion of acceptanceCriteria) {
+    body += `- [ ] ${criterion}\n`;
+  }
+  body += '\n';
+
+  body += `### 📝 Changes\n\n${changesSummary}\n\n`;
+
+  body += `### 🔍 Verification Steps\n\n`;
+  body += `1. Review the changes against acceptance criteria above\n`;
+  body += `2. Test the affected user flow manually\n`;
+  body += `3. Verify no regressions in related functionality\n`;
+  body += `4. After merge, monitor signal rates for this area\n\n`;
+
+  body += `---\n*Auto-generated by UserTests (PRD-06 pi.dev harness)*\n`;
+
+  return body;
+}
+
+/**
+ * Process a GitHub webhook for PR merge events.
+ * Returns task ID if this is a UserTests PR, null otherwise.
+ */
+export function extractTaskIdFromBranch(branchName: string): string | null {
+  // Branch format: usertests/<taskId>-description
+  const match = branchName.match(/^usertests\/([a-z0-9]+)-/);
+  return match ? match[1] : null;
+}
+
+function githubHeaders(token: string): Record<string, string> {
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'Content-Type': 'application/json',
+  };
+}

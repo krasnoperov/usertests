@@ -16,6 +16,7 @@ import { taskRoutes } from './tasks';
 import { screenerRoutes } from './screeners';
 import { overviewRoutes } from './overview';
 import { interviewRoutes } from './interview';
+import { implementationRoutes } from './implementations';
 
 /**
  * Register all routes with the main app
@@ -53,4 +54,7 @@ export function registerRoutes(app: Hono<AppContext>) {
 
   // Interview SDK (PRD-01/04)
   app.route('/', interviewRoutes);
+
+  // Implementations & webhooks (PRD-06)
+  app.route('/', implementationRoutes);
 }
