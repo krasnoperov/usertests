@@ -1,247 +1,130 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with this repository.
 
 ## Project Overview
 
-This is a **UserTests Framework Foundation** - a production-ready starting point for building authenticated web applications on Cloudflare Workers. It provides:
+**UserTests** is a self-improving user research platform that:
+1. Conducts JTBD (Jobs-to-be-Done) AI interviews
+2. Extracts signals from sessions (struggling moments, desired outcomes, workarounds, etc.)
+3. Prioritizes work into tasks based on user evidence
+4. Autonomously implements fixes via pi.dev harness
+5. Measures impact by re-interviewing to verify problems were solved
 
-- Multi-user authentication (Google OAuth + JWT)
-- Dual-worker architecture (HTTP + background processing)
-- Frontend (React 19 + Vite) with landing page, login, and profile
-- Database (D1/SQLite) with migrations
-- Testing infrastructure
-- CLI tool with login/logout
-
-The framework is intentionally minimal - all domain-specific logic has been removed, leaving only the infrastructure needed to build on top of.
+Built on Cloudflare Workers with React 19 frontend.
 
 ## Essential Commands
 
 ### Development
 ```bash
-npm run dev                  # Start both frontend (Vite:3002) and worker (Wrangler:8788)
+npm run dev                  # Start frontend (Vite:3002) + worker (Wrangler:8788)
 npm run dev:frontend         # Vite dev server only
 npm run dev:worker           # Wrangler worker only
 ```
 
-Access local dev at: https://localhost:3002/
-
 ### Testing & Quality
 ```bash
-npm test                     # Run all tests with Node.js test runner
+npm test                     # Run all tests
 npm run typecheck            # TypeScript type checking
-npm run lint                 # ESLint on src/ and scripts/
+npm run lint                 # ESLint
 ```
 
 ### Database
 ```bash
 npm run db:migrate                # Apply migrations locally
-npm run db:migrate:stage          # Apply migrations to stage environment
-npm run db:migrate:production     # Apply migrations to production environment
+npm run db:migrate:stage          # Stage environment
+npm run db:migrate:production     # Production
 ```
-
-Database persists in `.wrangler/state/v3/d1/` for local development.
 
 ### Deployment
 ```bash
-npm run deploy:stage              # Deploy main worker to stage
-npm run deploy:production         # Deploy main worker to production
-
-# Processing worker (separate deployments)
-wrangler deploy --config wrangler.processing.toml                    # Stage
-wrangler deploy --config wrangler.processing.toml --env production   # Production
-```
-
-### CLI Tool
-```bash
-npm run cli login                 # Authenticate with the platform
-npm run cli logout                # Remove stored credentials
+npm run deploy:stage              # Main worker to stage
+npm run deploy:production         # Main worker to production
 ```
 
 ## Architecture
 
-### Dual-Worker Architecture (Production/Stage)
-
-**Main Worker** (`src/worker/unified.ts` → `wrangler.toml`)
-- Handles HTTP API endpoints (`/api/*`)
-- Serves React frontend via Cloudflare Workers Assets
-- Queue producer (when queues are added)
-- Routes: All paths
-
-**Processing Worker** (`src/worker/processing.ts` → `wrangler.processing.toml`)
-- Handles queue consumption (when configured)
-- Runs Workflows (when implemented)
-- Workflow status endpoint (`/api/workflow/*` when configured)
-- Routes: `/api/workflow/*` only
-
-**Why dual workers?** Deploying frontend/API changes won't interrupt long-running background workflows. The separation prevents "Durable Object reset" errors during deployments.
-
-### Local Development (Unified Worker)
-
-In local dev (`wrangler.dev.toml`), everything runs in one worker (`src/worker/unified.ts`):
-- HTTP API + Frontend
-- Queue consumer (when configured)
-- Workflows (when implemented)
-- All bindings (D1, KV, Queue, R2, Workflows - as needed)
-
-**Why two servers in dev?** Running Vite (port 3002) and Wrangler (port 8788) separately with Vite proxying API requests ensures proper routing.
+### Dual-Worker Architecture
+- **Main Worker** (`src/worker/unified.ts` → `wrangler.toml`): HTTP API + React frontend
+- **Processing Worker** (`src/worker/processing.ts` → `wrangler.processing.toml`): Queue consumption + workflows
 
 ### Directory Structure
-
 ```
 src/
-├── api/              # API shared types
-├── backend/          # Hono routes, middleware, features
-│   ├── features/     # Feature modules (auth, etc.)
-│   ├── routes/       # API route handlers
-│   ├── services/     # Business logic services
-│   ├── utils/        # Backend utilities
-│   └── workflows/    # Cloudflare Workflows (with README template)
-├── cli/              # CLI tool for platform access
-├── core/             # DI container, types, shared config
-├── dao/              # Data access objects (Kysely)
-├── db/               # Database types and setup
-│   └── migrations/   # SQL migrations
-├── frontend/         # React app
-│   ├── components/   # React components
-│   ├── pages/        # Page components
-│   ├── hooks/        # Custom React hooks
-│   └── stores/       # Zustand stores
-├── shared/           # Shared utilities
-│   └── api/          # API client utilities
-├── test-utils/       # Testing utilities
-└── worker/           # Worker entry points
-    ├── unified.ts    # Main worker (local: all, prod: HTTP only)
-    └── processing.ts # Processing worker (prod: queue+workflow)
+├── api/                  # Shared API types
+├── backend/
+│   ├── features/auth/    # Google OAuth + JWT
+│   ├── middleware/        # Auth, project access, SDK auth, upload security
+│   ├── routes/            # Hono API endpoints
+│   │   ├── projects.ts    # PRD-00: Project CRUD
+│   │   ├── sessions.ts    # PRD-01: Session management
+│   │   ├── signals.ts     # PRD-03: Signal CRUD
+│   │   ├── tasks.ts       # PRD-05: Task management
+│   │   ├── screeners.ts   # PRD-07: Screener CRUD + public SDK
+│   │   ├── interview.ts   # PRD-01/04: Interview flow (SDK)
+│   │   ├── implementations.ts # PRD-06: pi.dev harness
+│   │   ├── sdk.ts         # PRD-02: Recording SDK endpoints
+│   │   └── overview.ts    # PRD-08: Dashboard metrics
+│   └── services/
+│       ├── interview/     # PRD-04: JTBD agent + prompts
+│       ├── analytics/     # PRD-03: Signal extraction + session processing
+│       ├── harness/       # PRD-06: Spec generation, GitHub, impact
+│       └── tasks/         # PRD-05: Priority scoring, signal clustering
+├── cli/                   # CLI tool
+├── core/                  # DI container, env types
+├── dao/                   # Data access objects (Kysely)
+│   ├── project-dao.ts
+│   ├── session-dao.ts
+│   ├── signal-dao.ts
+│   ├── task-dao.ts
+│   ├── screener-dao.ts
+│   └── implementation-dao.ts
+├── db/                    # Database types
+├── frontend/
+│   ├── pages/             # React pages (dashboard, sessions, signals, tasks)
+│   ├── components/        # Shared components
+│   ├── lib/api.ts         # API client
+│   └── stores/            # Zustand state (routing)
+├── sdk/                   # PRD-02: Recording SDK for embedding
+│   └── recorder.ts
+├── shared/                # Shared utilities (ID generation)
+└── worker/                # Worker entry points
 ```
 
-### Dependency Injection
+### Database (D1)
+14 tables across 6 migrations:
+- `users` — Auth (from whitelabel)
+- `projects`, `project_members` — Tenant boundary
+- `sessions`, `session_messages`, `session_events`, `audio_chunks` — Interview data
+- `signals`, `tasks`, `task_signals` — JTBD extraction + task management
+- `screeners`, `screener_questions`, `screener_responses` — Recruitment
+- `implementations` — pi.dev harness tracking
 
-Uses InversifyJS with decorators. Container setup in `src/core/container.ts`.
+### Key Patterns
 
-**Key symbols** (`src/core/di-types.ts`):
-- `TYPES.Env` - Cloudflare environment bindings
-- `TYPES.Database` - Kysely database instance
-- `TYPES.UserDAO` - User data access object
-
-**Adding a new service:**
-1. Create service class with `@injectable()` decorator
-2. Inject dependencies via constructor with `@inject(TYPES.Foo)`
-3. Bind in `createContainer()`: `container.bind(ServiceName).toSelf().inSingletonScope()`
-
-### Data Model (D1)
-
-**Tables:**
-- `users` - User accounts (Google OAuth)
-
-See commented examples in `db/migrations/0001_initial_schema.sql` for adding domain tables.
-
-### Environment Variables
-
-Required in `.env` (local) and Wrangler secrets (production):
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - OAuth
-- `OIDC_*` - OIDC/JWT configuration for authentication
-
-Optional (for AI services):
-- `GOOGLE_AI_API_KEY` - Google AI/Gemini
-- `OPENAI_API_KEY` - OpenAI
-- `AI_GATEWAY_URL` - Cloudflare AI Gateway
-
-Set production secrets: `wrangler secret put SECRET_NAME`
-
-### Testing
-
-Tests use Node.js built-in test runner (`node:test`) with `node:assert`.
-
-**Run tests:**
-```bash
-npm test        # Runs with @swc-node/register for TypeScript support
-```
-
-**Test file pattern:** `*.test.ts` files throughout the codebase
-
-### Important Notes
-
-- **Path aliases:** TypeScript path resolution configured in `tsconfig.json`
-- **Secrets:** Never commit `.env` files. Use `.env.example` as template
-- **Migrations:** Always test migrations locally before deploying to stage/production
-- **Custom domains:** Configure in wrangler.toml for your project
-
-### Common Patterns
-
-**Adding a new API endpoint:**
+**Adding an API endpoint:**
 1. Create route handler in `src/backend/routes/`
 2. Register in `registerRoutes()` (`src/backend/routes/index.ts`)
-3. Add authentication middleware if needed
-4. Create corresponding DAO methods if database access required
+3. Use `createAuthMiddleware()` for authenticated routes
+4. Use `createProjectMiddleware()` for project-scoped routes
+5. Use `createSDKAuthMiddleware()` for public SDK routes
 
-**Adding a new DAO:**
-1. Create class in `src/dao/` with `@injectable()`
-2. Inject database: `@inject(TYPES.Database) private db: Kysely<Database>`
-3. Bind in container: `container.bind(FooDAO).toSelf().inSingletonScope()`
+**Adding a DAO:**
+1. Create in `src/dao/` with `@injectable()` decorator
+2. Bind in `src/core/container.ts`
+3. Add symbol to `src/core/di-types.ts`
 
-**Adding database migrations:**
-1. Create SQL file in `db/migrations/` with incremental number prefix
-2. Test locally: `npm run db:migrate`
-3. Deploy to stage: `npm run db:migrate:stage`
-4. Deploy to production: `npm run db:migrate:production`
+**Queue processing:**
+Messages dispatched to `src/backend/queue-handler.ts`
+Types: `session.completed`, `audio.transcribe`, `signals.extract`, `impact.measure`
 
-**Adding queues/workflows/R2:**
-See commented examples in:
-- `wrangler.toml`, `wrangler.processing.toml`, `wrangler.dev.toml`
-- `src/core/types.ts` (Env interface)
-- `src/backend/workflows/README.md` (workflow template)
+## Environment Variables
 
-## Getting Started
+Required:
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` — OAuth
+- `OIDC_*` — JWT configuration
+- `ANTHROPIC_API_KEY` — Signal extraction + interview agent
 
-1. **Clone and install:**
-   ```bash
-   npm install
-   ```
-
-2. **Set up environment:**
-   ```bash
-   cp .env.example .env
-   # Fill in your Google OAuth credentials and other secrets
-   ```
-
-3. **Initialize database:**
-   ```bash
-   npm run db:migrate
-   ```
-
-4. **Start development:**
-   ```bash
-   npm run dev
-   ```
-
-5. **Add your domain logic:**
-   - Create new database tables in a migration
-   - Add DAOs for data access
-   - Create API routes
-   - Build frontend pages
-   - Implement workflows/queues as needed
-
-## What's Included
-
-✅ Google OAuth authentication with JWT
-✅ User management (profile, sessions)
-✅ Dual-worker architecture for scalability
-✅ React 19 frontend with Vite
-✅ D1 database with migrations
-✅ InversifyJS dependency injection
-✅ Testing infrastructure
-✅ CLI tool foundation
-✅ TypeScript throughout
-
-## What's NOT Included (Add as Needed)
-
-- Domain-specific database tables
-- Business logic and services
-- Queue processing
-- Cloudflare Workflows
-- R2 file storage
-- Additional API endpoints
-- Domain-specific frontend pages
-
-This is intentionally a **bare foundation** - start building your application on top of this infrastructure.
+Optional:
+- `OPENAI_API_KEY` — Whisper transcription
+- `GITHUB_TOKEN` — PRD-06 harness PR creation
