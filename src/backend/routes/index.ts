@@ -15,6 +15,7 @@ import { signalRoutes } from './signals';
 import { taskRoutes } from './tasks';
 import { screenerRoutes } from './screeners';
 import { overviewRoutes } from './overview';
+import { interviewRoutes } from './interview';
 
 /**
  * Register all routes with the main app
@@ -49,4 +50,7 @@ export function registerRoutes(app: Hono<AppContext>) {
 
   // Dashboard overview (PRD-08)
   app.route('/', overviewRoutes);
+
+  // Interview SDK (PRD-01/04)
+  app.route('/', interviewRoutes);
 }
