@@ -1,11 +1,7 @@
-// ============================================================================
-// BARE FRAMEWORK FOUNDATION - Data Access Objects
-// ============================================================================
-// Export your DAOs here
-
 export { UserDAO } from './user-dao';
-
-// --- FUTURE: Add your domain DAOs here ---
-// Example:
-// export { AssetDAO } from './asset-dao';
-// export { JobDAO } from './job-dao';
+export { ProjectDAO } from './project-dao';
+export { SessionDAO } from './session-dao';
+export { SignalDAO } from './signal-dao';
+export { TaskDAO } from './task-dao';
+export { ScreenerDAO } from './screener-dao';
+export { ImplementationDAO } from './implementation-dao';

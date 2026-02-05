@@ -7,12 +7,15 @@ export const TYPES = {
 
   // DAO symbols
   UserDAO: Symbol.for('UserDAO'),
-
-  // --- FUTURE: Add your DAO symbols here ---
-  // Example:
-  // AssetDAO: Symbol.for('AssetDAO'),
-  // JobDAO: Symbol.for('JobDAO'),
-
-  // For classes, we use the class constructor directly
-  // This file only contains symbols for non-class bindings
+  ProjectDAO: Symbol.for('ProjectDAO'),
+  SessionDAO: Symbol.for('SessionDAO'),
+  SessionMessageDAO: Symbol.for('SessionMessageDAO'),
+  SessionEventDAO: Symbol.for('SessionEventDAO'),
+  AudioChunkDAO: Symbol.for('AudioChunkDAO'),
+  SignalDAO: Symbol.for('SignalDAO'),
+  TaskDAO: Symbol.for('TaskDAO'),
+  ScreenerDAO: Symbol.for('ScreenerDAO'),
+  ScreenerQuestionDAO: Symbol.for('ScreenerQuestionDAO'),
+  ScreenerResponseDAO: Symbol.for('ScreenerResponseDAO'),
+  ImplementationDAO: Symbol.for('ImplementationDAO'),
 } as const;

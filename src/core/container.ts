@@ -7,6 +7,12 @@ import { createDb } from '../db';
 
 // Import DAOs
 import { UserDAO } from '../dao/user-dao';
+import { ProjectDAO } from '../dao/project-dao';
+import { SessionDAO } from '../dao/session-dao';
+import { SignalDAO } from '../dao/signal-dao';
+import { TaskDAO } from '../dao/task-dao';
+import { ScreenerDAO } from '../dao/screener-dao';
+import { ImplementationDAO } from '../dao/implementation-dao';
 
 // Import Auth Services
 import { AuthService } from '../backend/features/auth/auth-service';
@@ -15,7 +21,6 @@ import { AuthHandler } from '../backend/features/auth/auth-handler';
 
 /**
  * Create and configure the dependency injection container
- * This is the heart of the bare framework - add your services here
  */
 export function createContainer(env: Env): Container {
   const container = new Container();
@@ -32,22 +37,28 @@ export function createContainer(env: Env): Container {
   container.bind(UserDAO).toSelf().inSingletonScope();
   container.bind(TYPES.UserDAO).toService(UserDAO);
 
+  container.bind(ProjectDAO).toSelf().inSingletonScope();
+  container.bind(TYPES.ProjectDAO).toService(ProjectDAO);
+
+  container.bind(SessionDAO).toSelf().inSingletonScope();
+  container.bind(TYPES.SessionDAO).toService(SessionDAO);
+
+  container.bind(SignalDAO).toSelf().inSingletonScope();
+  container.bind(TYPES.SignalDAO).toService(SignalDAO);
+
+  container.bind(TaskDAO).toSelf().inSingletonScope();
+  container.bind(TYPES.TaskDAO).toService(TaskDAO);
+
+  container.bind(ScreenerDAO).toSelf().inSingletonScope();
+  container.bind(TYPES.ScreenerDAO).toService(ScreenerDAO);
+
+  container.bind(ImplementationDAO).toSelf().inSingletonScope();
+  container.bind(TYPES.ImplementationDAO).toService(ImplementationDAO);
+
   // Bind Auth Services
   container.bind(AuthService).toSelf().inSingletonScope();
   container.bind(AuthController).toSelf().inSingletonScope();
   container.bind(AuthHandler).toSelf().inSingletonScope();
-
-  // --- FUTURE: Bind your domain services here ---
-  // Example:
-  // import { AssetDAO } from '../dao/asset-dao';
-  // import { AssetService } from '../backend/services/assetService';
-  //
-  // container.bind(AssetDAO).toSelf().inSingletonScope();
-  // container.bind(TYPES.AssetDAO).toService(AssetDAO);
-  //
-  // container.bind(AssetService).toDynamicValue(() => (
-  //   new AssetService(env.SOME_API_KEY)
-  // )).inSingletonScope();
 
   return container;
 }
