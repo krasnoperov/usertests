@@ -1,6 +1,5 @@
 /**
  * Central route registration file
- * Organizes all API routes into logical groups
  */
 import type { Hono } from 'hono';
 import type { AppContext } from './types';
@@ -10,29 +9,44 @@ import { healthRoutes } from './health';
 import { oauthRoutes } from './oauth';
 import { authRoutes } from './auth';
 import { userRoutes } from './user';
+import { projectRoutes } from './projects';
+import { sessionRoutes } from './sessions';
+import { signalRoutes } from './signals';
+import { taskRoutes } from './tasks';
+import { screenerRoutes } from './screeners';
+import { overviewRoutes } from './overview';
 
 /**
  * Register all routes with the main app
  */
 export function registerRoutes(app: Hono<AppContext>) {
-  // Health check routes
+  // Health check
   app.route('/', healthRoutes);
 
-  // OAuth/OpenID Connect routes
+  // OAuth/OIDC
   app.route('/', oauthRoutes);
 
-  // Authentication routes
+  // Authentication
   app.route('/', authRoutes);
 
-  // User profile routes
+  // User profile
   app.route('/', userRoutes);
 
-  // --- FUTURE: Add your domain-specific routes here ---
-  // Example:
-  // import { assetRoutes } from './assets';
-  // app.route('/', assetRoutes);
-  //
-  // Example: Upload routes
-  // import { uploadRoutes } from './upload';
-  // app.route('/', uploadRoutes);
+  // Projects (PRD-00)
+  app.route('/', projectRoutes);
+
+  // Sessions (PRD-01/02)
+  app.route('/', sessionRoutes);
+
+  // Signals (PRD-03)
+  app.route('/', signalRoutes);
+
+  // Tasks (PRD-05)
+  app.route('/', taskRoutes);
+
+  // Screeners (PRD-07)
+  app.route('/', screenerRoutes);
+
+  // Dashboard overview (PRD-08)
+  app.route('/', overviewRoutes);
 }
