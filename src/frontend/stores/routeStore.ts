@@ -6,6 +6,16 @@ export type RoutePage =
   | 'login'
   | 'profile'
   | 'oauthApprove'
+  // Dashboard pages
+  | 'dashboard'
+  | 'sessions'
+  | 'sessionDetail'
+  | 'signals'
+  | 'tasks'
+  | 'taskDetail'
+  | 'screeners'
+  | 'screenerDetail'
+  | 'settings'
   | 'unknown';
 
 export interface RouteParams {
@@ -21,8 +31,7 @@ interface RouteState {
 }
 
 const parseRoute = (path: string): { page: RoutePage; params: RouteParams } => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const segments = path.replace(/\/+$/, '').split('/');
+  const segments = path.replace(/\/+$/, '').split('/').filter(Boolean);
 
   if (path === '/' || path === '') {
     return { page: 'landing', params: {} };
@@ -38,6 +47,41 @@ const parseRoute = (path: string): { page: RoutePage; params: RouteParams } => {
 
   if (path === '/oauth/approve') {
     return { page: 'oauthApprove', params: {} };
+  }
+
+  // Dashboard routes: /p/:projectId/...
+  if (segments[0] === 'p' && segments[1]) {
+    const projectId = segments[1];
+
+    if (segments.length === 2) {
+      return { page: 'dashboard', params: { projectId } };
+    }
+
+    switch (segments[2]) {
+      case 'sessions':
+        if (segments[3]) {
+          return { page: 'sessionDetail', params: { projectId, sessionId: segments[3] } };
+        }
+        return { page: 'sessions', params: { projectId } };
+
+      case 'signals':
+        return { page: 'signals', params: { projectId } };
+
+      case 'tasks':
+        if (segments[3]) {
+          return { page: 'taskDetail', params: { projectId, taskId: segments[3] } };
+        }
+        return { page: 'tasks', params: { projectId } };
+
+      case 'screeners':
+        if (segments[3]) {
+          return { page: 'screenerDetail', params: { projectId, screenerId: segments[3] } };
+        }
+        return { page: 'screeners', params: { projectId } };
+
+      case 'settings':
+        return { page: 'settings', params: { projectId } };
+    }
   }
 
   return { page: 'unknown', params: {} };
@@ -87,7 +131,6 @@ export const useRouteStore = create<RouteState>()((set, get) => ({
 if (typeof window !== 'undefined') {
   initNavigator();
 
-  // Subscribe to navigation events and update store
   subscribeToNavigation((url) => {
     useRouteStore.getState().setLocation(url.pathname, url.search);
   });

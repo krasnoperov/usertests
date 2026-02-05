@@ -28,32 +28,32 @@ export default function LandingPage() {
         <div className={styles.container}>
           {!user ? (
             <div className={styles.hero}>
-              <h2 className={styles.headline}>Build Your Next Project</h2>
+              <h2 className={styles.headline}>Insights That Ship Themselves</h2>
               <p className={styles.subtitle}>
-                A modern, authenticated web application framework on Cloudflare Workers.
-                Multi-user support, dual-worker architecture, real-time chat, and ready for your domain logic.
+                AI interviews users, extracts Jobs-to-be-Done signals, prioritizes work,
+                and autonomously implements improvements — then re-interviews to measure impact.
               </p>
 
               <div className={styles.features}>
                 <div className={styles.featureItem}>
-                  <span className={styles.featureIcon}>🔐</span>
-                  <span className={styles.featureText}>Authentication</span>
-                  <span className={styles.featureDescription}>Google OAuth with JWT tokens, secure user sessions</span>
+                  <span className={styles.featureIcon}>🎙️</span>
+                  <span className={styles.featureText}>AI Interviews</span>
+                  <span className={styles.featureDescription}>JTBD methodology conducted by AI — at scale, 24/7</span>
                 </div>
                 <div className={styles.featureItem}>
-                  <span className={styles.featureIcon}>👥</span>
-                  <span className={styles.featureText}>Multi-User</span>
-                  <span className={styles.featureDescription}>User profiles, role-based access, complete user management</span>
+                  <span className={styles.featureIcon}>🔍</span>
+                  <span className={styles.featureText}>Signal Extraction</span>
+                  <span className={styles.featureDescription}>Automatically find struggling moments, workarounds, and desired outcomes</span>
                 </div>
                 <div className={styles.featureItem}>
-                  <span className={styles.featureIcon}>⚡</span>
-                  <span className={styles.featureText}>Dual Workers</span>
-                  <span className={styles.featureDescription}>HTTP worker for API + frontend, processing worker for async jobs</span>
+                  <span className={styles.featureIcon}>🤖</span>
+                  <span className={styles.featureText}>Auto Implementation</span>
+                  <span className={styles.featureDescription}>pi.dev generates code fixes, creates PRs, deploys changes</span>
                 </div>
                 <div className={styles.featureItem}>
-                  <span className={styles.featureIcon}>💬</span>
-                  <span className={styles.featureText}>Real-Time Chat</span>
-                  <span className={styles.featureDescription}>Chat components ready for AI integration or messaging</span>
+                  <span className={styles.featureIcon}>📊</span>
+                  <span className={styles.featureText}>Impact Measurement</span>
+                  <span className={styles.featureDescription}>Re-interview to verify the problem was actually solved</span>
                 </div>
               </div>
 
@@ -63,12 +63,12 @@ export default function LandingPage() {
             </div>
           ) : (
             <div className={styles.hero}>
-              <h2 className={styles.headline}>Welcome, {user.name}!</h2>
+              <h2 className={styles.headline}>Welcome back, {user.name}!</h2>
               <p className={styles.subtitle}>
-                You're logged in and ready to build. This is your bare framework foundation—add your domain logic to get started.
+                Head to your projects to view insights, manage tasks, and track impact.
               </p>
               <div className={styles.ctaButtons}>
-                <Link to="/profile" className={styles.ctaButton}>View Profile</Link>
+                <Link to="/profile" className={styles.ctaButton}>View Projects</Link>
               </div>
             </div>
           )}
