@@ -1,8 +1,7 @@
 # ============================================================================
-# BARE FRAMEWORK FOUNDATION - Main Worker Configuration
+# UserTests - Main Worker Configuration
 # ============================================================================
 # Handles HTTP requests (API + Frontend)
-# Processing worker handles queues/workflows (see wrangler.processing.toml)
 
 account_id = "2d61278ad8b69df60cde602758926e14"
 name = "usertests-stage"
@@ -10,26 +9,24 @@ main = "src/worker/unified.ts"
 compatibility_date = "2025-04-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Observability
 [observability]
 enabled = true
 
-# Serve the React frontend
 [assets]
 directory = "./dist/frontend"
 not_found_handling = "single-page-application"
 run_worker_first = ["/api/*", "/.well-known/*"]
 
-# Stage environment custom domain
+# Stage custom domain
 [[routes]]
 pattern = "usertests-stage.krasnoperov.me"
 custom_domain = true
 
-# D1 Database binding
+# D1 Database
 [[d1_databases]]
 binding = "DB"
 database_name = "usertests-stage"
-database_id = "fe3cb23a-2286-4a10-a21b-217fb0be999d"
+database_id = "e8ac02de-bf4b-49f2-9a73-ed45c1810abc"
 migrations_dir = "db/migrations"
 
 # KV namespace for OAuth state
@@ -37,77 +34,56 @@ migrations_dir = "db/migrations"
 binding = "OAUTH_KV"
 id = "08f7fd3b25ac4cc59ad9e2975d510df3"
 
-# Environment variables for stage
+# R2 Storage (audio, recordings, exports)
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "usertests-storage-stage"
+
+# Queue Producer
+[[queues.producers]]
+queue = "usertests-processing-stage"
+binding = "PROCESSING_QUEUE"
+
 [vars]
 NODE_ENV = "stage"
 ENVIRONMENT = "stage"
 
-# --- FUTURE: Queue Producer ---
-# Uncomment when you add async workflows:
-# [[queues.producers]]
-# queue = "my-queue-stage"
-# binding = "MY_QUEUE"
-
-# --- FUTURE: R2 Storage ---
-# Uncomment when you need file storage:
-# [[r2_buckets]]
-# binding = "MY_STORAGE"
-# bucket_name = "my-bucket-stage"
-
 # ====================
-# PRODUCTION ENVIRONMENT
+# PRODUCTION
 # ====================
 [env.production]
 name = "usertests-production"
 
-# Production custom domains
 [[env.production.routes]]
 pattern = "usertests.krasnoperov.me"
 custom_domain = true
 
-[[env.production.routes]]
-pattern = "www.usertests.krasnoperov.me"
-custom_domain = true
-
-# D1 Database binding - Production
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "usertests-production"
-database_id = "239df1be-1499-4d03-80bf-7341545b4547"
+database_id = "5a755b7e-9e9e-498c-b656-0cc588152f15"
 migrations_dir = "db/migrations"
 
-# KV namespace for OAuth state - Production
 [[env.production.kv_namespaces]]
 binding = "OAUTH_KV"
 id = "08f7fd3b25ac4cc59ad9e2975d510df3"
+
+# TODO: Create production R2 bucket and queue
+# [[env.production.r2_buckets]]
+# binding = "STORAGE"
+# bucket_name = "usertests-storage-production"
+
+# [[env.production.queues.producers]]
+# queue = "usertests-processing-production"
+# binding = "PROCESSING_QUEUE"
 
 [env.production.vars]
 NODE_ENV = "production"
 ENVIRONMENT = "production"
 
-# --- FUTURE: Queue Producer - Production ---
-# [[env.production.queues.producers]]
-# queue = "my-queue-production"
-# binding = "MY_QUEUE"
-
-# --- FUTURE: R2 Storage - Production ---
-# [[env.production.r2_buckets]]
-# binding = "MY_STORAGE"
-# bucket_name = "my-bucket-production"
-
 # ====================
 # LOCAL DEVELOPMENT
 # ====================
-# NOTE: Local development uses wrangler.dev.toml with unified worker
 [dev]
 port = 8788
 local_protocol = "http"
-
-# Secrets should be set via wrangler CLI:
-# wrangler secret put GOOGLE_CLIENT_ID
-# wrangler secret put GOOGLE_CLIENT_SECRET
-# wrangler secret put OIDC_PRIVATE_KEY_BASE64
-# wrangler secret put OIDC_KEY_ID
-# wrangler secret put OIDC_ISSUER
-# wrangler secret put OIDC_AUDIENCE
-# wrangler secret put GOOGLE_AI_API_KEY (optional, for NanoBananaService)
