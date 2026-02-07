@@ -68,14 +68,13 @@ migrations_dir = "db/migrations"
 binding = "OAUTH_KV"
 id = "08f7fd3b25ac4cc59ad9e2975d510df3"
 
-# TODO: Create production R2 bucket and queue
-# [[env.production.r2_buckets]]
-# binding = "STORAGE"
-# bucket_name = "usertests-storage-production"
+[[env.production.r2_buckets]]
+binding = "STORAGE"
+bucket_name = "usertests-storage-production"
 
-# [[env.production.queues.producers]]
-# queue = "usertests-processing-production"
-# binding = "PROCESSING_QUEUE"
+[[env.production.queues.producers]]
+queue = "usertests-processing-production"
+binding = "PROCESSING_QUEUE"
 
 [env.production.vars]
 NODE_ENV = "production"

@@ -59,6 +59,23 @@ migrations_dir = "db/migrations"
 binding = "OAUTH_KV"
 id = "08f7fd3b25ac4cc59ad9e2975d510df3"
 
+# D1: Queue Consumer (production)
+[[env.production.queues.consumers]]
+queue = "usertests-processing-production"
+max_batch_size = 1
+max_batch_timeout = 60
+max_retries = 3
+
+# D1: Queue Producer for retries (production)
+[[env.production.queues.producers]]
+queue = "usertests-processing-production"
+binding = "PROCESSING_QUEUE"
+
+# D1: R2 Storage (production)
+[[env.production.r2_buckets]]
+binding = "STORAGE"
+bucket_name = "usertests-storage-production"
+
 [env.production.vars]
 NODE_ENV = "production"
 ENVIRONMENT = "production"
