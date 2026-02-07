@@ -12,16 +12,40 @@ import {
   waitForAuthorizationCode,
   openBrowser,
 } from '../lib/auth';
-import { DEFAULT_ENVIRONMENT, resolveBaseUrl, saveConfig, getConfigPath } from '../lib/config';
+import { resolveBaseUrl, saveConfig, getConfigPath } from '../lib/config';
+import { parseEnvironment, getBooleanOption } from '../lib/args';
 
 export async function handleLogin(parsed: ParsedArgs) {
-  // Handle --local flag
-  const isLocal = parsed.options.local === 'true';
-  const env = isLocal ? 'local' : (parsed.options.env ?? DEFAULT_ENVIRONMENT);
+  const env = parseEnvironment(parsed);
   const baseUrl = resolveBaseUrl(env);
   const clientId = DEFAULT_CLIENT_ID;
-  const redirectPort = DEFAULT_REDIRECT_PORT;
-  const insecure = isLocal;
+  const insecure = env === 'local';
+
+  // --token <jwt>: skip OAuth, store the token directly
+  const rawToken = parsed.options.token;
+  if (rawToken && rawToken !== 'true') {
+    const storedConfig: StoredConfig = {
+      environment: env,
+      baseUrl,
+      clientId,
+      token: {
+        accessToken: rawToken,
+        expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 days
+        issuedAt: Date.now(),
+        scope: AUTH_SCOPES,
+      },
+      user: null,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await saveConfig(storedConfig);
+    console.log(`Token saved for environment "${env}". Credentials at ${await getConfigPath()}`);
+    return;
+  }
+
+  const redirectPort = parsed.options.port && parsed.options.port !== 'true'
+    ? parseInt(parsed.options.port, 10)
+    : DEFAULT_REDIRECT_PORT;
 
   if (insecure) {
     console.log('⚠️  SSL certificate verification disabled (local dev mode)');
@@ -52,12 +76,22 @@ export async function handleLogin(parsed: ParsedArgs) {
   authUrl.searchParams.set('state', state);
   authUrl.searchParams.set('access_type', 'offline');
 
-  console.log('Opening browser for Google authentication...');
-  try {
-    await openBrowser(authUrl.toString());
-  } catch (error) {
-    console.warn('Unable to open browser automatically. Please copy the URL below into your browser:');
-    console.log(authUrl.toString());
+  // Always print the URL so it works on headless/remote hosts
+  console.log('\nOpen this URL in your browser to authenticate:\n');
+  console.log(authUrl.toString());
+  console.log('');
+  console.log(`Waiting for OAuth callback on http://127.0.0.1:${redirectPort}/callback ...`);
+  console.log('Tip: If on a remote host, set up an SSH tunnel:');
+  console.log(`  ssh -L ${redirectPort}:127.0.0.1:${redirectPort} <remote-host>\n`);
+
+  const noBrowser = getBooleanOption(parsed, 'no-browser');
+  if (!noBrowser) {
+    try {
+      await openBrowser(authUrl.toString());
+      console.log('(Browser opened automatically)');
+    } catch {
+      console.log('(Could not open browser — use the URL above)');
+    }
   }
 
   const { code } = await waitForAuthorizationCode(redirectPort, state);

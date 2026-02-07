@@ -1,5 +1,9 @@
+export type CliEnvironment = 'production' | 'stage' | 'local';
+
 export type ParsedArgs = {
+  raw: string[];
   options: Record<string, string>;
+  multiOptions: Record<string, string[]>;
   positionals: string[];
 };
 

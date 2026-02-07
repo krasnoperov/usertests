@@ -1,10 +1,10 @@
 import type { ParsedArgs } from '../lib/types';
-import { removeConfig, DEFAULT_ENVIRONMENT } from '../lib/config';
+import { removeConfig } from '../lib/config';
+import { parseOptionalEnvironment } from '../lib/args';
 
 export async function handleLogout(parsed: ParsedArgs) {
-  // Determine environment from flags
-  const isLocal = parsed.options.local === 'true';
-  const environment = isLocal ? 'local' : (parsed.options.env || undefined);
+  // When env is omitted, logout clears all stored credentials.
+  const environment = parseOptionalEnvironment(parsed) ?? undefined;
 
   try {
     if (environment) {

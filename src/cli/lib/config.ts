@@ -3,8 +3,8 @@ import os from 'node:os';
 import path from 'node:path';
 import type { StoredConfig, MultiEnvConfig } from './types';
 
-export const DEFAULT_ENVIRONMENT = 'production';
-const CONFIG_DIR_NAME = 'npm run cli';
+export const DEFAULT_ENVIRONMENT = 'stage';
+const CONFIG_DIR_NAME = 'usertests-cli';
 const CONFIG_FILE_NAME = 'config.json';
 
 async function loadMultiEnvConfig(): Promise<MultiEnvConfig | null> {
