@@ -26,14 +26,20 @@ export default function SignalsPage() {
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState('');
 
-  useEffect(() => {
+  const loadSignals = async () => {
     setLoading(true);
-    signalsAPI.list(projectId, { type: typeFilter || undefined, limit: 50 })
-      .then(({ signals, total }) => {
-        setSignals(signals);
-        setTotal(total);
-      })
-      .finally(() => setLoading(false));
+    try {
+      const { signals, total } = await signalsAPI.list(projectId, { type: typeFilter || undefined, limit: 50 });
+      setSignals(signals);
+      setTotal(total);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadSignals();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, typeFilter]);
 
   return (
@@ -48,6 +54,7 @@ export default function SignalsPage() {
         <Link to={`/p/${projectId}/signals`} className={styles.subnavLink}>Signals</Link>
         <Link to={`/p/${projectId}/tasks`} className={styles.subnavLink}>Tasks</Link>
         <Link to={`/p/${projectId}/screeners`} className={styles.subnavLink}>Screeners</Link>
+        <Link to={`/p/${projectId}/settings`} className={styles.subnavLink}>Settings</Link>
       </nav>
 
       <main className={styles.main}>

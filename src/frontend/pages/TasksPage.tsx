@@ -56,6 +56,7 @@ export default function TasksPage() {
         <Link to={`/p/${projectId}/signals`} className={styles.subnavLink}>Signals</Link>
         <Link to={`/p/${projectId}/tasks`} className={`${styles.subnavLink} ${styles.active}`}>Tasks</Link>
         <Link to={`/p/${projectId}/screeners`} className={styles.subnavLink}>Screeners</Link>
+        <Link to={`/p/${projectId}/settings`} className={styles.subnavLink}>Settings</Link>
       </nav>
 
       <main className={styles.main}>

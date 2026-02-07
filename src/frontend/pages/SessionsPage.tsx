@@ -16,14 +16,20 @@ export default function SessionsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('');
 
-  useEffect(() => {
+  const loadSessions = async () => {
     setLoading(true);
-    sessionsAPI.list(projectId, { status: statusFilter || undefined, limit: 50 })
-      .then(({ sessions, total }) => {
-        setSessions(sessions);
-        setTotal(total);
-      })
-      .finally(() => setLoading(false));
+    try {
+      const { sessions, total } = await sessionsAPI.list(projectId, { status: statusFilter || undefined, limit: 50 });
+      setSessions(sessions);
+      setTotal(total);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadSessions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, statusFilter]);
 
   return (
@@ -38,6 +44,7 @@ export default function SessionsPage() {
         <Link to={`/p/${projectId}/signals`} className={styles.subnavLink}>Signals</Link>
         <Link to={`/p/${projectId}/tasks`} className={styles.subnavLink}>Tasks</Link>
         <Link to={`/p/${projectId}/screeners`} className={styles.subnavLink}>Screeners</Link>
+        <Link to={`/p/${projectId}/settings`} className={styles.subnavLink}>Settings</Link>
       </nav>
 
       <main className={styles.main}>

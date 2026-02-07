@@ -16,6 +16,10 @@ export type RoutePage =
   | 'screeners'
   | 'screenerDetail'
   | 'settings'
+  // Public participant pages
+  | 'publicScreener'
+  | 'publicInterview'
+  | 'publicComplete'
   | 'unknown';
 
 export interface RouteParams {
@@ -47,6 +51,27 @@ const parseRoute = (path: string): { page: RoutePage; params: RouteParams } => {
 
   if (path === '/oauth/approve') {
     return { page: 'oauthApprove', params: {} };
+  }
+
+  // Public participant routes: /u/...
+  if (segments[0] === 'u' && segments[1]) {
+    switch (segments[1]) {
+      case 'screener':
+        if (segments[2]) {
+          return { page: 'publicScreener', params: { screenerId: segments[2] } };
+        }
+        break;
+      case 'interview':
+        if (segments[2]) {
+          return { page: 'publicInterview', params: { sessionId: segments[2] } };
+        }
+        break;
+      case 'complete':
+        if (segments[2]) {
+          return { page: 'publicComplete', params: { sessionId: segments[2] } };
+        }
+        break;
+    }
   }
 
   // Dashboard routes: /p/:projectId/...

@@ -129,7 +129,7 @@ export const screenersAPI = {
     request<{ screener: Screener; questions: ScreenerQuestion[]; responses: ScreenerResponse[] }>(
       `/projects/${projectId}/screeners/${screenerId}`
     ),
-  create: (projectId: string, data: { title: string; description?: string; questions?: ScreenerQuestion[] }) =>
+  create: (projectId: string, data: { title: string; description?: string; questions?: ScreenerQuestionInput[] }) =>
     request<{ screener: Screener; questions: ScreenerQuestion[] }>(
       `/projects/${projectId}/screeners`,
       { method: 'POST', body: JSON.stringify(data) }
@@ -141,6 +141,26 @@ export const screenersAPI = {
     ),
   delete: (projectId: string, screenerId: string) =>
     request(`/projects/${projectId}/screeners/${screenerId}`, { method: 'DELETE' }),
+  addQuestion: (projectId: string, screenerId: string, data: ScreenerQuestionInput) =>
+    request<{ question: ScreenerQuestion }>(
+      `/projects/${projectId}/screeners/${screenerId}/questions`,
+      { method: 'POST', body: JSON.stringify(data) }
+    ),
+  updateQuestion: (projectId: string, screenerId: string, questionId: string, data: Partial<ScreenerQuestionInput>) =>
+    request<{ question: ScreenerQuestion }>(
+      `/projects/${projectId}/screeners/${screenerId}/questions/${questionId}`,
+      { method: 'PATCH', body: JSON.stringify(data) }
+    ),
+  deleteQuestion: (projectId: string, screenerId: string, questionId: string) =>
+    request<{ success: boolean }>(
+      `/projects/${projectId}/screeners/${screenerId}/questions/${questionId}`,
+      { method: 'DELETE' }
+    ),
+  reorderQuestions: (projectId: string, screenerId: string, questionIds: string[]) =>
+    request<{ questions: ScreenerQuestion[] }>(
+      `/projects/${projectId}/screeners/${screenerId}/questions/reorder`,
+      { method: 'POST', body: JSON.stringify({ question_ids: questionIds }) }
+    ),
 };
 
 // --- Overview ---
@@ -158,8 +178,12 @@ export interface Project {
   description: string | null;
   owner_id: number;
   github_repo_url: string | null;
+  github_default_branch: string;
   public_key: string;
+  secret_key: string;
+  settings_json: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface ProjectMember {
@@ -195,6 +219,10 @@ export interface SessionEvent {
   event_type: string;
   timestamp_ms: number;
   data_json: string;
+  target_selector: string | null;
+  target_text: string | null;
+  url: string | null;
+  page_title: string | null;
 }
 
 export interface Signal {
@@ -229,25 +257,52 @@ export interface Task {
 
 export interface Screener {
   id: string;
+  project_id: string;
   title: string;
   description: string | null;
   slug: string;
   status: string;
+  max_participants: number | null;
+  incentive_type: string;
+  incentive_value_cents: number;
+  incentive_description: string | null;
+  logo_r2_key: string | null;
+  brand_color: string;
+  welcome_message: string | null;
+  thank_you_message: string;
+  disqualified_message: string;
+  consent_text: string;
   view_count: number;
   start_count: number;
   complete_count: number;
   qualified_count: number;
   disqualified_count: number;
-  brand_color: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface ScreenerQuestion {
   id: string;
+  screener_id: string;
   question_text: string;
   question_type: string;
   required: number;
+  sort_order: number;
   options_json: string | null;
+  min_value: number | null;
+  max_value: number | null;
+  qualification_rules_json: string | null;
+  created_at: string;
+}
+
+export interface ScreenerQuestionInput {
+  question_text: string;
+  question_type: string;
+  required?: boolean;
+  options?: string[];
+  min_value?: number;
+  max_value?: number;
+  qualification_rules?: Record<string, unknown>;
 }
 
 export interface ScreenerResponse {
@@ -255,6 +310,10 @@ export interface ScreenerResponse {
   participant_name: string | null;
   participant_email: string | null;
   qualified: number | null;
+  qualification_reason: string | null;
+  session_id: string | null;
+  answers_json: string;
+  consent_given: number;
   created_at: string;
 }
 
