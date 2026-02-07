@@ -11,10 +11,8 @@ const COLUMNS = [
   { key: 'backlog', label: 'Backlog' },
   { key: 'ready', label: 'Ready' },
   { key: 'in_progress', label: 'In Progress' },
-  { key: 'review', label: 'Review' },
-  { key: 'deployed', label: 'Deployed' },
-  { key: 'measuring', label: 'Measuring' },
   { key: 'done', label: 'Done' },
+  { key: 'wont_fix', label: "Won't Fix" },
 ];
 
 export default function TasksPage() {
@@ -122,7 +120,7 @@ function TaskCard({
           <button className={styles.actionBtn} onClick={() => onStatusChange(task.id, 'in_progress')}>→ Start</button>
         )}
         {task.status === 'in_progress' && (
-          <button className={styles.actionBtn} onClick={() => onStatusChange(task.id, 'review')}>→ Review</button>
+          <button className={styles.actionBtn} onClick={() => onStatusChange(task.id, 'done')}>→ Done</button>
         )}
       </div>
     </div>

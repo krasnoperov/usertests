@@ -172,9 +172,6 @@ export type TaskStatus =
   | 'backlog'
   | 'ready'
   | 'in_progress'
-  | 'review'
-  | 'deployed'
-  | 'measuring'
   | 'done'
   | 'wont_fix';
 
@@ -287,6 +284,44 @@ export interface ScreenerResponsesTable {
 export type ScreenerResponse = Selectable<ScreenerResponsesTable>;
 export type NewScreenerResponse = Insertable<ScreenerResponsesTable>;
 
+// --- Task Provider State (PRD-06 providers) ---
+
+export interface TaskProviderStateTable {
+  id: string;
+  task_id: string;
+  project_id: string;
+  provider: string;
+  external_id: string | null;
+  external_url: string | null;
+  external_status: string | null;
+  metadata_json: string | null;
+  synced_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type TaskProviderState = Selectable<TaskProviderStateTable>;
+export type NewTaskProviderState = Insertable<TaskProviderStateTable>;
+export type TaskProviderStateUpdate = Updateable<TaskProviderStateTable>;
+
+// --- Task Measurements ---
+
+export interface TaskMeasurementsTable {
+  id: string;
+  task_id: string;
+  project_id: string;
+  measured_at: string;
+  baseline_signal_rate: number | null;
+  current_signal_rate: number | null;
+  impact_score: number | null;
+  sessions_analyzed: number | null;
+  measurement_window_days: number | null;
+  created_at: string;
+}
+
+export type TaskMeasurement = Selectable<TaskMeasurementsTable>;
+export type NewTaskMeasurement = Insertable<TaskMeasurementsTable>;
+
 // --- Implementations (PRD-06) ---
 
 export interface ImplementationsTable {
@@ -334,4 +369,6 @@ export interface Database {
   screener_questions: ScreenerQuestionsTable;
   screener_responses: ScreenerResponsesTable;
   implementations: ImplementationsTable;
+  task_provider_state: TaskProviderStateTable;
+  task_measurements: TaskMeasurementsTable;
 }

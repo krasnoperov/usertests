@@ -52,7 +52,7 @@ Interview is transcribed and analyzed. Signals extracted include struggling mome
 Signals cluster into actionable tasks. Quality scoring prioritizes high-value, specific, actionable feedback from credible users.
 
 ### 5. Implementation
-Tasks are implemented (via pi.dev integration or manual development). Changes go through standard PR review process.
+Tasks are pushed to configured providers (e.g. GitHub Issues/PRs) and implemented by external agents (dev team, AI agents, etc.). Changes go through standard PR review process.
 
 ### 6. Measure
 Post-deployment monitoring tracks whether the change had positive impact:
@@ -106,7 +106,7 @@ Certain changes always require human approval:
 - PRD-02: Recording Infrastructure (for capturing feedback)
 - PRD-03: Signal Extraction (for analyzing feedback)
 - PRD-05: Task Management (for creating improvement tasks)
-- PRD-06: pi.dev Integration (for automated implementation)
+- PRD-06: Task Providers (for pushing tasks to external systems)
 - PRD-07: Screener System (for targeting users)
 
 ### Provides (to other systems)

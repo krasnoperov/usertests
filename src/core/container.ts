@@ -13,6 +13,8 @@ import { SignalDAO } from '../dao/signal-dao';
 import { TaskDAO } from '../dao/task-dao';
 import { ScreenerDAO } from '../dao/screener-dao';
 import { ImplementationDAO } from '../dao/implementation-dao';
+import { TaskProviderDAO } from '../dao/task-provider-dao';
+import { TaskMeasurementDAO } from '../dao/task-measurement-dao';
 
 // Import Auth Services
 import { AuthService } from '../backend/features/auth/auth-service';
@@ -54,6 +56,12 @@ export function createContainer(env: Env): Container {
 
   container.bind(ImplementationDAO).toSelf().inSingletonScope();
   container.bind(TYPES.ImplementationDAO).toService(ImplementationDAO);
+
+  container.bind(TaskProviderDAO).toSelf().inSingletonScope();
+  container.bind(TYPES.TaskProviderDAO).toService(TaskProviderDAO);
+
+  container.bind(TaskMeasurementDAO).toSelf().inSingletonScope();
+  container.bind(TYPES.TaskMeasurementDAO).toService(TaskMeasurementDAO);
 
   // Bind Auth Services
   container.bind(AuthService).toSelf().inSingletonScope();

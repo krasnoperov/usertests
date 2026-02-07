@@ -18,4 +18,6 @@ export const TYPES = {
   ScreenerQuestionDAO: Symbol.for('ScreenerQuestionDAO'),
   ScreenerResponseDAO: Symbol.for('ScreenerResponseDAO'),
   ImplementationDAO: Symbol.for('ImplementationDAO'),
+  TaskProviderDAO: Symbol.for('TaskProviderDAO'),
+  TaskMeasurementDAO: Symbol.for('TaskMeasurementDAO'),
 } as const;

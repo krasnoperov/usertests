@@ -43,6 +43,7 @@ export class TaskDAO {
       effort_estimate: input.effort_estimate ?? null,
       signal_count: 0,
       session_count: 0,
+      // Legacy harness columns — kept nullable for backwards compat, new code uses task_provider_state
       implementation_branch: null,
       implementation_pr_url: null,
       implementation_pr_number: null,
@@ -128,11 +129,7 @@ export class TaskDAO {
   }
 
   async updateStatus(id: string, status: string): Promise<void> {
-    const updates: Partial<TaskUpdate> = { status };
-    if (status === 'deployed') {
-      updates.deployed_at = new Date().toISOString();
-    }
-    await this.update(id, updates);
+    await this.update(id, { status });
   }
 
   async recalculateEvidence(taskId: string): Promise<void> {

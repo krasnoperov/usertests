@@ -108,6 +108,11 @@ export const tasksAPI = {
       `/projects/${projectId}/tasks/${taskId}/spec`,
       { method: 'POST' }
     ),
+  push: (projectId: string, taskId: string, provider?: string) =>
+    request<{ implementation: unknown; spec: unknown; provider: unknown }>(
+      `/projects/${projectId}/tasks/${taskId}/push`,
+      { method: 'POST', body: JSON.stringify({ provider: provider || 'github' }) }
+    ),
   implement: (projectId: string, taskId: string, dryRun?: boolean) =>
     request<{ implementation: unknown; spec: unknown }>(
       `/projects/${projectId}/tasks/${taskId}/implement`,

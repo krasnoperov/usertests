@@ -7,7 +7,7 @@ import { useRouteStore } from '../stores/routeStore';
 import { tasksAPI, type Signal, type Task } from '../lib/api';
 import styles from './EntityPage.module.css';
 
-const TASK_STATUSES = ['backlog', 'ready', 'in_progress', 'review', 'deployed', 'measuring', 'done', 'wont_fix'] as const;
+const TASK_STATUSES = ['backlog', 'ready', 'in_progress', 'done', 'wont_fix'] as const;
 
 export default function TaskDetailPage() {
   const { user } = useAuth();
@@ -22,10 +22,10 @@ export default function TaskDetailPage() {
   const [statusUpdating, setStatusUpdating] = useState(false);
 
   const [specResult, setSpecResult] = useState<unknown | null>(null);
-  const [implementResult, setImplementResult] = useState<unknown | null>(null);
+  const [pushResult, setPushResult] = useState<unknown | null>(null);
   const [impactResult, setImpactResult] = useState<unknown | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState<'spec' | 'implement' | 'measure' | null>(null);
+  const [actionLoading, setActionLoading] = useState<'spec' | 'push' | 'measure' | null>(null);
 
   useEffect(() => {
     loadTask();
@@ -60,7 +60,7 @@ export default function TaskDetailPage() {
     }
   };
 
-  const runAction = async (action: 'spec' | 'implement' | 'measure') => {
+  const runAction = async (action: 'spec' | 'push' | 'measure') => {
     if (!task) return;
 
     setActionLoading(action);
@@ -71,9 +71,9 @@ export default function TaskDetailPage() {
         const result = await tasksAPI.generateSpec(projectId, task.id);
         setSpecResult(result);
       }
-      if (action === 'implement') {
-        const result = await tasksAPI.implement(projectId, task.id);
-        setImplementResult(result);
+      if (action === 'push') {
+        const result = await tasksAPI.push(projectId, task.id);
+        setPushResult(result);
         await loadTask();
       }
       if (action === 'measure') {
@@ -146,13 +146,13 @@ export default function TaskDetailPage() {
             </section>
 
             <section className={styles.card}>
-              <h3 className={styles.cardTitle}>Implementation Actions</h3>
+              <h3 className={styles.cardTitle}>Provider Actions</h3>
               <div className={styles.buttonRow}>
                 <button className={`${styles.button} ${styles.buttonPrimary}`} onClick={() => void runAction('spec')} disabled={actionLoading !== null}>
                   {actionLoading === 'spec' ? 'Generating...' : 'Generate Spec'}
                 </button>
-                <button className={`${styles.button} ${styles.buttonPrimary}`} onClick={() => void runAction('implement')} disabled={actionLoading !== null}>
-                  {actionLoading === 'implement' ? 'Implementing...' : 'Implement'}
+                <button className={`${styles.button} ${styles.buttonPrimary}`} onClick={() => void runAction('push')} disabled={actionLoading !== null}>
+                  {actionLoading === 'push' ? 'Pushing...' : 'Push to Provider'}
                 </button>
                 <button className={styles.button} onClick={() => void runAction('measure')} disabled={actionLoading !== null}>
                   {actionLoading === 'measure' ? 'Measuring...' : 'Measure Impact'}
@@ -191,7 +191,7 @@ export default function TaskDetailPage() {
               )}
             </section>
 
-            {(specResult !== null || implementResult !== null || impactResult !== null) && (
+            {(specResult !== null || pushResult !== null || impactResult !== null) && (
               <section className={styles.card}>
                 <h3 className={styles.cardTitle}>Action Results</h3>
                 {specResult !== null && (
@@ -200,10 +200,10 @@ export default function TaskDetailPage() {
                     <pre className={styles.pre}>{JSON.stringify(specResult, null, 2) ?? 'No response body'}</pre>
                   </div>
                 )}
-                {implementResult !== null && (
+                {pushResult !== null && (
                   <div style={{ marginBottom: '0.8rem' }}>
-                    <div className={styles.small} style={{ marginBottom: '0.3rem' }}>Implementation</div>
-                    <pre className={styles.pre}>{JSON.stringify(implementResult, null, 2) ?? 'No response body'}</pre>
+                    <div className={styles.small} style={{ marginBottom: '0.3rem' }}>Provider Push</div>
+                    <pre className={styles.pre}>{JSON.stringify(pushResult, null, 2) ?? 'No response body'}</pre>
                   </div>
                 )}
                 {impactResult !== null && (

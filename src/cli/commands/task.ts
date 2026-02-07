@@ -82,6 +82,26 @@ export async function handleTaskCommand(subcommand: string | undefined, parsed: 
       return;
     }
 
+    case 'push': {
+      const projectId = requirePositional(parsed, 0, '<projectId>');
+      const taskId = requirePositional(parsed, 1, '<taskId>');
+      assertNoExtraPositionals(parsed, 2);
+
+      const provider = parsed.options.provider && parsed.options.provider !== 'true' ? parsed.options.provider : 'github';
+      const dryRun = getBooleanOption(parsed, 'dry-run');
+      const data = await requestJson({
+        env,
+        method: 'POST',
+        path: `/api/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/push`,
+        body: {
+          provider,
+          dry_run: dryRun,
+        },
+      });
+      printOutput(data, parsed);
+      return;
+    }
+
     case 'implement': {
       const projectId = requirePositional(parsed, 0, '<projectId>');
       const taskId = requirePositional(parsed, 1, '<taskId>');
@@ -129,17 +149,20 @@ Commands:
   get <projectId> <taskId>
   update-status <projectId> <taskId> <status>
   spec <projectId> <taskId>
+  push <projectId> <taskId> [--provider github] [--dry-run]
   implement <projectId> <taskId> [--dry-run]
   measure <projectId> <taskId>
 
 Options:
   --env <env>                stage | production | local
   --json                     JSON output
+  --provider <name>          Provider to push to (default: github)
 
 Examples:
-  npm run cli task list proj_123 --status open
+  npm run cli task list proj_123 --status ready
   npm run cli task update-status proj_123 task_456 in_progress
-  npm run cli task implement proj_123 task_456 --dry-run
+  npm run cli task push proj_123 task_456 --provider github
+  npm run cli task push proj_123 task_456 --dry-run
   npm run cli task measure proj_123 task_456
 `);
 }

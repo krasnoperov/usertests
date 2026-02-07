@@ -2,7 +2,7 @@
 
 ## Overview
 
-The task tracker converts JTBD signals into actionable work items. It aggregates evidence from multiple user sessions, prioritizes by impact, and feeds tasks to the pi.dev CLI for autonomous implementation.
+The task tracker converts JTBD signals into actionable work items. It aggregates evidence from multiple user sessions, prioritizes by impact, and feeds tasks to configured providers (GitHub, Jira, Linear, etc.) for external implementation.
 
 **Core insight:** A task backed by 5 user quotes saying "I can't find the export button" is more compelling than a feature request in a spreadsheet.
 
@@ -26,7 +26,7 @@ Product teams struggle to connect user research to development work. Pain points
 - Priority scoring based on frequency, recency, and intensity
 - Task lifecycle management from backlog to measured impact
 - Impact measurement comparing signal rates before and after deployment
-- Integration with analytics (PRD-03) and CLI (PRD-06)
+- Integration with analytics (PRD-03) and task providers (PRD-06)
 
 ---
 
@@ -95,5 +95,5 @@ Priority labels derived from score:
 - **PRD-04 (Agent)** - Real-time task suggestions during interviews
 
 ### Provides To
-- **PRD-06 (pi.dev CLI)** - Ready tasks with evidence for implementation
+- **PRD-06 (Task Providers)** - Ready tasks with evidence for external implementation
 - **PRD-08 (Dashboard)** - Task lists, details, and impact metrics for display
