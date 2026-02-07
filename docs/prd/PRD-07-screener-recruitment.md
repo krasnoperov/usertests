@@ -118,4 +118,4 @@ The screener system creates targeted landing pages to recruit specific user segm
 - **PRD-01 (Interview System)**: Qualified participants ready for interviews
 - **PRD-08 (Dashboard)**: Recruitment funnel metrics and screener stats
 - **PRD-09 (Self-Improvement)**: Signal data for targeting future screeners
-- **PRD-06 (pi.dev Harness)**: Follow-up screener creation for deployed tasks
+- **PRD-06 (Task Providers)**: Follow-up screener creation for completed tasks

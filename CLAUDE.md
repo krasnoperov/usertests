@@ -8,7 +8,7 @@ This file provides guidance to Claude Code when working with this repository.
 1. Conducts JTBD (Jobs-to-be-Done) AI interviews (text chat; voice is post-MVP)
 2. Extracts signals from sessions (struggling moments, desired outcomes, workarounds, etc.)
 3. Prioritizes work into tasks based on user evidence
-4. Generates specs and GitHub PRs for implementation (autonomous pi.dev execution is post-MVP)
+4. Pushes tasks to configured providers (GitHub Issues/PRs first; Jira, Linear planned)
 5. Measures impact by comparing signal rates before and after deployment
 
 Built on Cloudflare Workers with React 19 frontend.
@@ -62,13 +62,14 @@ src/
 │   │   ├── tasks.ts       # PRD-05: Task management
 │   │   ├── screeners.ts   # PRD-07: Screener CRUD + public SDK
 │   │   ├── interview.ts   # PRD-01/04: Interview flow (SDK)
-│   │   ├── implementations.ts # PRD-06: pi.dev harness
+│   │   ├── providers.ts     # PRD-06: Task provider routes
 │   │   ├── sdk.ts         # PRD-02: Recording SDK endpoints
 │   │   └── overview.ts    # PRD-08: Dashboard metrics
 │   └── services/
 │       ├── interview/     # PRD-04: JTBD agent + prompts
 │       ├── analytics/     # PRD-03: Signal extraction + session processing
-│       ├── harness/       # PRD-06: Spec generation, GitHub, impact
+│       ├── harness/       # PRD-06: Spec generation, GitHub client, impact
+│       ├── providers/     # PRD-06: Task provider abstractions (GitHub, etc.)
 │       └── tasks/         # PRD-05: Priority scoring, signal clustering
 ├── cli/                   # CLI tool
 ├── core/                  # DI container, env types
@@ -78,7 +79,9 @@ src/
 │   ├── signal-dao.ts
 │   ├── task-dao.ts
 │   ├── screener-dao.ts
-│   └── implementation-dao.ts
+│   ├── implementation-dao.ts
+│   ├── task-provider-dao.ts
+│   └── task-measurement-dao.ts
 ├── db/                    # Database types
 ├── frontend/
 │   ├── pages/             # React pages (dashboard, sessions, signals, tasks)
@@ -92,13 +95,15 @@ src/
 ```
 
 ### Database (D1)
-14 tables across 6 migrations:
+16 tables across 7 migrations:
 - `users` — Auth (from whitelabel)
 - `projects`, `project_members` — Tenant boundary
 - `sessions`, `session_messages`, `session_events`, `audio_chunks` — Interview data
 - `signals`, `tasks`, `task_signals` — JTBD extraction + task management
 - `screeners`, `screener_questions`, `screener_responses` — Recruitment
-- `implementations` — pi.dev harness tracking
+- `implementations` — Legacy harness tracking
+- `task_provider_state` — External provider sync state
+- `task_measurements` — Impact measurement history
 
 ### Key Patterns
 
@@ -128,4 +133,4 @@ Required:
 
 Optional:
 - `OPENAI_API_KEY` — Whisper transcription
-- `GITHUB_TOKEN` — PRD-06 harness PR creation
+- `GITHUB_TOKEN` — PRD-06 task provider (GitHub Issues/PRs)

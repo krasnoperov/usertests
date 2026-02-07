@@ -88,7 +88,7 @@ A participant's answers to screener questions.
 | Auth | Google OAuth | User authentication | Active |
 | Real-time | Durable Objects | WebSocket + session state | Post-MVP |
 | Voice AI | OpenAI Realtime API | Speech-to-speech interviews | Post-MVP |
-| Implementation | pi.dev | Autonomous code generation | Post-MVP |
+| Task Providers | GitHub API (+ future Jira, Linear) | External task sync | Active |
 
 ---
 
@@ -148,7 +148,7 @@ PRD-04 (Interview Agent)
 PRD-05 (Task Tracker)
     Uses: Task, Signal
 
-PRD-06 (pi.dev Harness)
+PRD-06 (Task Providers)
     Uses: Task, GitHub integration, CLI
 
 PRD-07 (Screener)

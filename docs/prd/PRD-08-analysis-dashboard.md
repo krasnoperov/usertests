@@ -107,7 +107,7 @@ Project configuration, repository connection, feature settings, and API key mana
 - PRD-01 (Interview): Session data, status, and real-time updates
 - PRD-03 (Analytics): Signals, timeline events, and transcripts
 - PRD-05 (Task Tracker): Tasks, evidence, priority scores, and implementation status
-- PRD-06 (pi.dev): Implementation progress and impact measurements
+- PRD-06 (Task Providers): Provider state and impact measurements
 - PRD-07 (Screener): Screener stats, funnel data, and responses
 
 ### Provides Data To
