@@ -32,25 +32,22 @@ Product teams struggle to connect user research to development work. Pain points
 
 ## Task Lifecycle
 
-Tasks progress through the following states:
+Tasks progress through the following core statuses:
 
 1. **Backlog** - New task created from signals, not yet prioritized
-2. **Ready** - Prioritized and available for implementation
-3. **In Progress** - Currently being worked on
-4. **Review** - PR open, awaiting code review
-5. **Deployed** - Merged and live in production
-6. **Measuring** - Collecting post-deployment data to assess impact
-7. **Done** - Impact confirmed, task closed
+2. **Ready** - Prioritized and available for work
+3. **In Progress** - Being worked on (pushed to provider or picked up manually)
+4. **Done** - Completed and impact verified
+5. **Won't Fix** - Decided not to address
 
 Transitions:
 - Signals cluster into Backlog tasks
 - Prioritization moves tasks to Ready
-- Manual or automated pickup moves to In Progress
-- PR merge moves to Deployed
-- Time-based measurement check moves to Measuring
-- Confirmed impact reduction moves to Done
+- Pushing to a provider (or manual pickup) moves to In Progress
+- Provider webhook (e.g. PR merged) or manual update moves to Done
+- Impact measurement confirms fix effectiveness
 
-Tasks may also be marked **Won't Fix** if decided not to address.
+Provider-specific states (e.g. PR open, merged, closed) are tracked separately in `task_provider_state`, not as core task statuses. This keeps the task model clean and provider-agnostic.
 
 ---
 

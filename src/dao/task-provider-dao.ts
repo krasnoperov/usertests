@@ -72,10 +72,11 @@ export class TaskProviderDAO {
   }
 
   async updateStatus(id: string, status: string, metadata?: Record<string, unknown>): Promise<void> {
+    const now = new Date().toISOString();
     const updates: Partial<TaskProviderStateUpdate> = {
       external_status: status,
-      synced_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      synced_at: now,
+      updated_at: now,
     };
     if (metadata) {
       updates.metadata_json = JSON.stringify(metadata);

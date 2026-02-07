@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS task_measurements (
 );
 
 CREATE INDEX idx_task_measurements_task ON task_measurements(task_id);
+CREATE INDEX idx_task_provider_state_project ON task_provider_state(project_id);
+CREATE INDEX idx_task_measurements_project ON task_measurements(project_id);
 
 -- Migrate existing harness data to task_provider_state
 INSERT INTO task_provider_state (id, task_id, project_id, provider, external_url, external_status, metadata_json, synced_at, created_at, updated_at)

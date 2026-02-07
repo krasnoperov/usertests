@@ -13,17 +13,95 @@ import {
   buildImplementationPrompt,
   extractKeywords,
   type TaskEvidence,
+  type PiTaskSpec,
 } from '../services/harness/spec-generator';
 import { GitHubProvider, type GitHubProviderConfig } from '../services/providers/github-provider';
+import type { ProviderPushResult } from '../services/providers/types';
 import { measureImpact } from '../services/harness/impact-tracker';
 import { createDb } from '../../db';
 import type { Env } from '../../core/types';
+import type { Task, Project, Implementation } from '../../db/types';
 
 const providerRoutes = new Hono<AppContext>();
 const auth = createAuthMiddleware();
 const projectAccess = createProjectMiddleware();
 
 const githubProvider = new GitHubProvider();
+
+/**
+ * Shared push logic used by both /push and /implement endpoints.
+ */
+async function pushToProvider(opts: {
+  task: Task;
+  project: Project;
+  spec: PiTaskSpec;
+  implementation: Implementation;
+  providerName: string;
+  dryRun: boolean;
+  env: Env;
+  implDAO: InstanceType<typeof ImplementationDAO>;
+  providerDAO: InstanceType<typeof TaskProviderDAO>;
+}): Promise<ProviderPushResult | null> {
+  const { task, project, spec, implementation, providerName, dryRun, env, implDAO, providerDAO } = opts;
+
+  if (dryRun || providerName !== 'github' || !project.github_repo_url || !env.GITHUB_TOKEN) {
+    return null;
+  }
+
+  const config: GitHubProviderConfig = {
+    token: env.GITHUB_TOKEN,
+    repoUrl: project.github_repo_url,
+    defaultBranch: project.github_default_branch || 'main',
+  };
+
+  try {
+    await implDAO.markStarted(implementation.id);
+
+    const result = await githubProvider.pushTask(task, spec, config);
+
+    await implDAO.setPRInfo(
+      implementation.id,
+      result.externalUrl,
+      Number(result.externalId),
+      (result.metadata as { branch: string }).branch,
+    );
+
+    await providerDAO.upsert(task.id, task.project_id, 'github', {
+      external_id: result.externalId,
+      external_url: result.externalUrl,
+      external_status: result.externalStatus,
+      metadata_json: JSON.stringify(result.metadata),
+      synced_at: new Date().toISOString(),
+    });
+
+    return result;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    await implDAO.markFailed(implementation.id, reason);
+    console.error(`Provider push failed for task ${task.id}:`, reason);
+    return null;
+  }
+}
+
+/**
+ * Build TaskEvidence from a task and its signals.
+ */
+function buildEvidence(task: Task, signals: Array<{ signal_type: string; quote: string; context: string | null; analysis: string | null; confidence: number; intensity: number | null }>): TaskEvidence {
+  return {
+    title: task.title,
+    description: task.description,
+    task_type: task.task_type,
+    priority_label: task.priority_label,
+    signals: signals.map(s => ({
+      signal_type: s.signal_type,
+      quote: s.quote,
+      context: s.context,
+      analysis: s.analysis,
+      confidence: s.confidence,
+      intensity: s.intensity,
+    })),
+  };
+}
 
 // List implementations for a project (kept for backwards compat)
 providerRoutes.get('/api/projects/:projectId/implementations', auth, projectAccess, async (c) => {
@@ -57,21 +135,7 @@ providerRoutes.post('/api/projects/:projectId/tasks/:taskId/spec', auth, project
   }
 
   const signals = await signalDAO.getSignalsByTask(taskId);
-
-  const evidence: TaskEvidence = {
-    title: task.title,
-    description: task.description,
-    task_type: task.task_type,
-    priority_label: task.priority_label,
-    signals: signals.map(s => ({
-      signal_type: s.signal_type,
-      quote: s.quote,
-      context: s.context,
-      analysis: s.analysis,
-      confidence: s.confidence,
-      intensity: s.intensity,
-    })),
-  };
+  const evidence = buildEvidence(task, signals);
 
   const keywords = extractKeywords(
     task.title,
@@ -116,25 +180,9 @@ providerRoutes.post('/api/projects/:projectId/tasks/:taskId/push', auth, project
   }
 
   const signals = await signalDAO.getSignalsByTask(taskId);
-
-  const evidence: TaskEvidence = {
-    title: task.title,
-    description: task.description,
-    task_type: task.task_type,
-    priority_label: task.priority_label,
-    signals: signals.map(s => ({
-      signal_type: s.signal_type,
-      quote: s.quote,
-      context: s.context,
-      analysis: s.analysis,
-      confidence: s.confidence,
-      intensity: s.intensity,
-    })),
-  };
-
+  const evidence = buildEvidence(task, signals);
   const spec = generateSpec(evidence, project.github_repo_url || '', [], '');
 
-  // Create implementation record
   const implementation = await implDAO.create({
     task_id: taskId,
     project_id: projectId,
@@ -142,52 +190,19 @@ providerRoutes.post('/api/projects/:projectId/tasks/:taskId/push', auth, project
     is_dry_run: body.dry_run,
   });
 
-  // Update task status to in_progress
   await taskDAO.updateStatus(taskId, 'in_progress');
 
-  let pushResult = null;
-
-  if (!body.dry_run && providerName === 'github' && project.github_repo_url && env.GITHUB_TOKEN) {
-    const config: GitHubProviderConfig = {
-      token: env.GITHUB_TOKEN,
-      repoUrl: project.github_repo_url,
-      defaultBranch: project.github_default_branch || 'main',
-    };
-
-    try {
-      await implDAO.markStarted(implementation.id);
-
-      pushResult = await githubProvider.pushTask(task, spec, config);
-
-      // Persist PR info on implementation record
-      await implDAO.setPRInfo(
-        implementation.id,
-        pushResult.externalUrl,
-        Number(pushResult.externalId),
-        (pushResult.metadata as { branch: string }).branch,
-      );
-
-      // Store provider state
-      await providerDAO.upsert(taskId, projectId, 'github', {
-        external_id: pushResult.externalId,
-        external_url: pushResult.externalUrl,
-        external_status: pushResult.externalStatus,
-        metadata_json: JSON.stringify(pushResult.metadata),
-        synced_at: new Date().toISOString(),
-      });
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      await implDAO.markFailed(implementation.id, reason);
-      console.error(`Provider push failed for task ${taskId}:`, reason);
-    }
-  }
+  const pushResult = await pushToProvider({
+    task, project, spec, implementation, providerName,
+    dryRun: !!body.dry_run, env, implDAO, providerDAO,
+  });
 
   const updated = await implDAO.findById(implementation.id);
 
   return c.json({ implementation: updated || implementation, spec, provider: pushResult }, 201);
 });
 
-// Backwards-compatible /implement endpoint — delegates to push
+// Backwards-compatible /implement endpoint — delegates to shared push logic
 providerRoutes.post('/api/projects/:projectId/tasks/:taskId/implement', auth, projectAccess, async (c) => {
   const projectId = c.get('projectId');
   const container = c.get('container');
@@ -212,22 +227,7 @@ providerRoutes.post('/api/projects/:projectId/tasks/:taskId/implement', auth, pr
   }
 
   const signals = await signalDAO.getSignalsByTask(taskId);
-
-  const evidence: TaskEvidence = {
-    title: task.title,
-    description: task.description,
-    task_type: task.task_type,
-    priority_label: task.priority_label,
-    signals: signals.map(s => ({
-      signal_type: s.signal_type,
-      quote: s.quote,
-      context: s.context,
-      analysis: s.analysis,
-      confidence: s.confidence,
-      intensity: s.intensity,
-    })),
-  };
-
+  const evidence = buildEvidence(task, signals);
   const spec = generateSpec(evidence, project.github_repo_url || '', [], '');
 
   const implementation = await implDAO.create({
@@ -239,49 +239,19 @@ providerRoutes.post('/api/projects/:projectId/tasks/:taskId/implement', auth, pr
 
   await taskDAO.updateStatus(taskId, 'in_progress');
 
-  let prInfo: { pr_url: string; pr_number: number; branch_name: string } | null = null;
-
-  if (!body.dry_run && project.github_repo_url && env.GITHUB_TOKEN) {
-    const config: GitHubProviderConfig = {
-      token: env.GITHUB_TOKEN,
-      repoUrl: project.github_repo_url,
-      defaultBranch: project.github_default_branch || 'main',
-    };
-
-    try {
-      await implDAO.markStarted(implementation.id);
-
-      const pushResult = await githubProvider.pushTask(task, spec, config);
-
-      await implDAO.setPRInfo(
-        implementation.id,
-        pushResult.externalUrl,
-        Number(pushResult.externalId),
-        (pushResult.metadata as { branch: string }).branch,
-      );
-
-      prInfo = {
-        pr_url: pushResult.externalUrl,
-        pr_number: Number(pushResult.externalId),
-        branch_name: (pushResult.metadata as { branch: string }).branch,
-      };
-
-      // Store provider state
-      await providerDAO.upsert(taskId, projectId, 'github', {
-        external_id: pushResult.externalId,
-        external_url: pushResult.externalUrl,
-        external_status: pushResult.externalStatus,
-        metadata_json: JSON.stringify(pushResult.metadata),
-        synced_at: new Date().toISOString(),
-      });
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      await implDAO.markFailed(implementation.id, reason);
-      console.error(`GitHub integration failed for task ${taskId}:`, reason);
-    }
-  }
+  const pushResult = await pushToProvider({
+    task, project, spec, implementation, providerName: 'github',
+    dryRun: !!body.dry_run, env, implDAO, providerDAO,
+  });
 
   const updated = await implDAO.findById(implementation.id);
+
+  // Return in legacy format with pr field
+  const prInfo = pushResult ? {
+    pr_url: pushResult.externalUrl,
+    pr_number: Number(pushResult.externalId),
+    branch_name: (pushResult.metadata as { branch: string }).branch,
+  } : null;
 
   return c.json({ implementation: updated || implementation, spec, pr: prInfo }, 201);
 });
@@ -324,21 +294,22 @@ providerRoutes.post('/api/projects/:projectId/tasks/:taskId/measure', auth, proj
     return c.json({ error: 'Task not found' }, 404);
   }
 
-  // Check for deployment: look at provider state for a deployed_at timestamp
+  // Check for deployment: look at provider state for a merged status or deploy timestamp
   const providers = await providerDAO.findByTask(taskId);
-  const deployedProvider = providers.find(p => {
-    if (p.external_status === 'merged') return true;
-    if (p.metadata_json) {
-      const meta = JSON.parse(p.metadata_json);
-      if (meta.deployed_at || meta.merged_at) return true;
+  let deployedAt: string | null = null;
+
+  for (const p of providers) {
+    const meta = p.metadata_json ? JSON.parse(p.metadata_json) : {};
+    if (p.external_status === 'merged' || meta.deployed_at || meta.merged_at) {
+      deployedAt = meta.merged_at || meta.deployed_at || p.synced_at;
+      break;
     }
-    return false;
-  });
+  }
 
   // Fall back to legacy deployed_at on the task itself
-  const deployedAt = deployedProvider?.metadata_json
-    ? (JSON.parse(deployedProvider.metadata_json).merged_at || JSON.parse(deployedProvider.metadata_json).deployed_at)
-    : task.deployed_at;
+  if (!deployedAt) {
+    deployedAt = task.deployed_at;
+  }
 
   if (!deployedAt) {
     return c.json({ error: 'Task has not been deployed — no provider merge event found' }, 400);
