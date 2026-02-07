@@ -39,7 +39,7 @@ This correlation reveals user intent, confusion points, and emotional context th
 - Configurable consent options (recording, analytics, follow-up)
 - GDPR-compliant consent storage
 
-### Real-time Control
+### Real-time Control (Post-MVP)
 - WebSocket connection for live control
 - Remote start/stop from interview agent
 - Real-time event streaming
@@ -119,7 +119,7 @@ This correlation reveals user intent, confusion points, and emotional context th
 - Manifest management
 - Session finalization
 
-### Phase 3: Control Channel (1 day)
+### Phase 3: Control Channel (Post-MVP)
 - WebSocket connection
 - Remote start/stop
 - Marker commands

@@ -146,20 +146,22 @@ Project configuration, repository connection, feature settings, and API key mana
 
 ## MVP Scope
 
-**Included in MVP:**
-- Overview dashboard with metrics
-- Sessions list and detail view
-- Signals list with filtering
-- Task board (kanban)
-- Basic cost tracking display
-- Session deletion
-- JSON data export
+**Implemented:**
+- Overview dashboard with metrics (session/signal/task counts)
+- Sessions list and detail view (messages, events, signals)
+- Signals list with filtering by type
+- Task list with priority scores and detail view with evidence
+- Screener list and detail with question editor
+- Project settings page
+- Implementation status tracking
 
-**Deferred to Later:**
+**Post-MVP:**
+- Cost tracking display and usage breakdown
+- Session deletion UI (available via API/CLI, no self-serve dashboard)
+- JSON/CSV data export UI
+- Retention settings UI
 - Signal clustering visualization
-- Heatmaps
-- Full session replay
-- Shareable links
-- PDF export
+- Heatmaps and session replay
+- Shareable links and PDF export
 - Budget alerts
 - Team management

@@ -73,22 +73,22 @@ A participant's answers to screener questions.
 
 ## Technology Stack
 
-| Layer | Technology | Purpose |
-|-------|------------|---------|
-| Compute | Cloudflare Workers | Edge serverless functions |
-| Real-time | Durable Objects | WebSocket + session state |
-| Database | Cloudflare D1 | SQLite at the edge |
-| Storage | Cloudflare R2 | Audio/video blob storage |
-| Queues | Cloudflare Queues | Async job processing |
-| Cache | Cloudflare KV | Fast key-value cache |
-| Backend Framework | Hono | Lightweight web framework |
-| Frontend | React 19 + Vite | UI and build tooling |
-| Voice AI | OpenAI Realtime API | Speech-to-speech interviews |
-| Transcription | OpenAI Whisper | Audio to text |
-| Analysis | Claude (Anthropic) | Signal extraction |
-| Implementation | pi.dev | Code generation |
-| Source Control | GitHub | Repository + PRs |
-| Auth | Google OAuth | User authentication |
+| Layer | Technology | Purpose | Status |
+|-------|------------|---------|--------|
+| Compute | Cloudflare Workers | Edge serverless functions | Active |
+| Database | Cloudflare D1 | SQLite at the edge | Active |
+| Storage | Cloudflare R2 | Audio/video blob storage | Active |
+| Queues | Cloudflare Queues | Async job processing | Active |
+| Cache | Cloudflare KV | OAuth state | Active |
+| Backend Framework | Hono | Lightweight web framework | Active |
+| Frontend | React 19 + Vite | UI and build tooling | Active |
+| Transcription | OpenAI Whisper | Audio to text | Active |
+| Analysis | Claude (Anthropic) | Signal extraction | Active |
+| Source Control | GitHub | Repository + PRs | Active |
+| Auth | Google OAuth | User authentication | Active |
+| Real-time | Durable Objects | WebSocket + session state | Post-MVP |
+| Voice AI | OpenAI Realtime API | Speech-to-speech interviews | Post-MVP |
+| Implementation | pi.dev | Autonomous code generation | Post-MVP |
 
 ---
 
@@ -134,7 +134,7 @@ All other PRDs depend on Foundation for:
 PRD-00 (Foundation) <-- All PRDs depend on this
 
 PRD-01 (Interview Engine)
-    Uses: Durable Objects, WebSocket, Session
+    Uses: Session, D1 (MVP: HTTP chat; later: Durable Objects, WebSocket)
 
 PRD-02 (Recording SDK)
     Uses: R2 storage, Session, Project keys

@@ -1,8 +1,10 @@
-# PRD-06: pi.dev CLI Harness
+# PRD-06: Implementation Harness
+
+> **MVP status:** Spec generation, GitHub branch+PR creation, webhook merge detection, and sync impact measurement are implemented. **Not yet built:** codebase file search for spec context (TODOs in spec-generator.ts), autonomous pi.dev invocation, auto-merge policies.
 
 ## Overview
 
-The pi.dev CLI harness bridges user research insights and code changes. It takes prioritized tasks from PRD-05, translates them into specifications that pi.dev can understand, orchestrates implementation, and tracks deployment through to impact measurement. Every code change traces back to user evidence.
+The implementation harness bridges user research insights and code changes. It takes prioritized tasks from PRD-05, translates them into specifications, creates GitHub PRs with user evidence, and tracks deployment through to impact measurement. Every code change traces back to user evidence.
 
 ---
 

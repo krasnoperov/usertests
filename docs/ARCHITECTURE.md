@@ -1,18 +1,50 @@
 # UserTests Architecture
 
-## Implementation Status
+## Implementation Status (MVP)
 
-| Phase | PRD | Component | Status |
-|-------|-----|-----------|--------|
-| 1 | PRD-00 | Foundation (schema, types, DI, project CRUD) | ✅ Done |
-| 2 | PRD-05 | Task Tracker (signals → tasks, priority scoring) | ✅ Done |
-| 3 | PRD-07 | Screener & Recruitment (questions, qualification) | ✅ Done |
-| 4 | PRD-01+04 | Interview System + JTBD Agent (7-phase) | ✅ Done |
-| 5 | PRD-02 | Recording Pipeline (SDK, audio upload) | ✅ Done |
-| 6 | PRD-03 | Analytics Engine (signal extraction, session processing) | ✅ Done |
-| 7 | PRD-06 | pi.dev CLI Harness (spec gen, GitHub, impact) | ✅ Done |
-| 8 | PRD-08 | Analysis Dashboard (overview, sessions, signals, tasks) | ✅ Done |
-| 9 | PRD-09 | Self-Improvement Loop | ⏳ Deferred (v2) |
+| Phase | PRD | Component | Status | Notes |
+|-------|-----|-----------|--------|-------|
+| 1 | PRD-00 | Foundation (schema, types, DI, project CRUD) | ✅ Done | |
+| 2 | PRD-05 | Task Tracker (signals → tasks, priority scoring) | ✅ Done | |
+| 3 | PRD-07 | Screener & Recruitment (questions, qualification) | ✅ Done | Scheduling/incentives deferred |
+| 4 | PRD-01+04 | Interview System + JTBD Agent (7-phase) | ✅ Done | HTTP-based; Durable Objects/WebSocket/voice deferred |
+| 5 | PRD-02 | Recording Pipeline (SDK, audio upload) | ✅ Done | |
+| 6 | PRD-03 | Analytics Engine (signal extraction, session processing, audio transcription) | ✅ Done | |
+| 7 | PRD-06 | pi.dev CLI Harness (spec gen, GitHub branch+PR, impact sync-only) | ⚠️ Partial | Codebase file search not implemented (TODOs in spec-generator) |
+| 8 | PRD-08 | Analysis Dashboard (overview, sessions, signals, tasks) | ✅ Done | Cost tracking, GDPR data management deferred |
+| 9 | PRD-09 | Self-Improvement Loop | ⏳ Deferred | Post-MVP |
+
+### MVP-Specific Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Audio transcription (Whisper) | ✅ Implemented | Queue handler → OpenAI Whisper API |
+| Session processing status contract | ✅ Implemented | `processing_started` / `processed` / `processing_failed` events |
+| Impact measurement | ✅ Sync API only | Queue path intentionally removed for MVP |
+| Retry/backoff policy | ✅ Implemented | 60s → 300s → 900s, max 3 attempts |
+| Session reprocess API + CLI | ✅ Implemented | `POST .../reprocess` + `npm run cli session reprocess` |
+| Consent wiring | ✅ Implemented | Granular consent fields through screener → session |
+| UTM forwarding | ✅ Implemented | URL query → screener response → DB |
+| Rate limiting (public endpoints) | ✅ Implemented | Per-IP + per-session rate limits |
+| Payload size limits | ✅ Implemented | Audio 10MB, screen 25MB, message 4000 chars, events 256KB |
+| Implementation loop (branch + PR) | ✅ Implemented | Creates GitHub branch + PR with user evidence. Codebase file search skipped (see PRD-06 note above). |
+| Production bindings parity | ✅ Verified | Processing worker has D1, R2, Queue in prod config |
+| Smoke test script | ✅ Created | `scripts/mvp-smoke.sh` |
+| Operations runbook | ✅ Created | `docs/runbooks/mvp-ops.md` |
+
+### What MVP Does NOT Include
+
+These are explicitly deferred. See individual PRDs in `docs/prd/` for full specs:
+
+- **Real-time voice interviews** — PRD-01 describes Durable Objects + WebSocket + OpenAI Realtime speech-to-speech. MVP uses HTTP-based text chat with the JTBD agent. Voice is post-MVP.
+- **Codebase context in spec generation** — PRD-06 describes gathering relevant files from the repo before generating specs. Currently skipped (TODOs in `spec-generator.ts`). Specs are still generated from signal evidence alone.
+- **Cost tracking and GDPR data management UI** — PRD-08 describes usage/cost dashboards, session deletion by email, data export, retention settings. Not built. Dashboard covers sessions, signals, tasks, and screeners only.
+- **Full autonomous pi.dev orchestration** — MVP creates specs and GitHub PRs, but does not invoke pi.dev as an autonomous coding agent. Human runs the implementation.
+- **Auto-merge / auto-rollback policies** — PRs require human review and merge.
+- **Advanced screener features** — Scheduling, calendar, incentive automation, quota segmentation.
+- **PRD-09 self-improvement loop** — The meta-system where UserTests improves itself. Entirely post-MVP.
+- **Async impact measurement** — Impact measurement is sync API only; no queue path.
+- **Session replay / heatmaps** — Events are captured but no visual replay or heatmap UI.
 
 ## Data Flow
 
@@ -80,6 +112,7 @@ GET/POST       /api/projects/:id/sessions
 GET/PATCH/DEL  /api/projects/:id/sessions/:id
 POST           /api/projects/:id/sessions/:id/messages
 POST           /api/projects/:id/sessions/:id/events
+POST           /api/projects/:id/sessions/:id/reprocess
 GET            /api/projects/:id/signals
 POST           /api/projects/:id/signals/:id/link
 GET/POST       /api/projects/:id/tasks
@@ -98,9 +131,13 @@ GET            /api/projects/:id/overview
 ```
 POST  /api/sdk/sessions
 POST  /api/sdk/audio/upload
+POST  /api/sdk/screen/upload
 POST  /api/sdk/events
+POST  /api/sdk/interview/:id/events      (compat)
 GET   /api/sdk/screener/:id
 POST  /api/sdk/screener/:id/respond
+GET   /api/sdk/interview/:id
+PATCH /api/sdk/interview/:id/participant
 POST  /api/sdk/interview/:id/start
 POST  /api/sdk/interview/:id/message
 POST  /api/sdk/interview/:id/end
@@ -125,7 +162,22 @@ POST  /api/webhooks/github
 /p/:projectId/tasks/:id    Task detail
 /p/:projectId/screeners    Screeners list
 /p/:projectId/settings     Project settings
+/u/screener/:screenerId    Public screener page
+/u/interview/:sessionId    Public participant interview room
+/u/complete/:sessionId     Public completion page
 ```
+
+## Key MVP Decisions
+
+These decisions deviate from the original PRDs and are intentional for MVP scope:
+
+| Decision | Rationale |
+|----------|-----------|
+| HTTP chat instead of WebSocket/Durable Objects (PRD-01) | Simpler to ship; voice can be layered on later without changing the data model |
+| Post-session signal extraction only (PRD-03) | Real-time detection adds complexity; batch processing via queue is sufficient |
+| Sync-only impact measurement (PRD-06) | Queue-driven measurement deferred; API endpoint covers the pilot use case |
+| No cost/usage tracking UI (PRD-08) | Cloudflare dashboard covers cost visibility for now |
+| No GDPR data management UI (PRD-08) | Session/signal deletion available via API and CLI; no self-serve UI yet |
 
 ## Tech Stack
 

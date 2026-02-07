@@ -4,12 +4,12 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## Project Overview
 
-**UserTests** is a self-improving user research platform that:
-1. Conducts JTBD (Jobs-to-be-Done) AI interviews
+**UserTests** is a user research platform that:
+1. Conducts JTBD (Jobs-to-be-Done) AI interviews (text chat; voice is post-MVP)
 2. Extracts signals from sessions (struggling moments, desired outcomes, workarounds, etc.)
 3. Prioritizes work into tasks based on user evidence
-4. Autonomously implements fixes via pi.dev harness
-5. Measures impact by re-interviewing to verify problems were solved
+4. Generates specs and GitHub PRs for implementation (autonomous pi.dev execution is post-MVP)
+5. Measures impact by comparing signal rates before and after deployment
 
 Built on Cloudflare Workers with React 19 frontend.
 
@@ -116,7 +116,8 @@ src/
 
 **Queue processing:**
 Messages dispatched to `src/backend/queue-handler.ts`
-Types: `session.completed`, `audio.transcribe`, `signals.extract`, `impact.measure`
+Types: `session.completed`, `audio.transcribe`, `signals.extract`
+(Note: `impact.measure` was removed for MVP — impact measurement is sync API only)
 
 ## Environment Variables
 

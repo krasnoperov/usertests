@@ -1,8 +1,10 @@
-# PRD-01: Real-Time Voice Interview System
+# PRD-01: Interview System
+
+> **MVP status:** The interview system is implemented as HTTP-based text chat with a 7-phase JTBD agent (Claude). Session state lives in D1. Audio is recorded and transcribed post-session. The voice/WebSocket/Durable Objects architecture described below is the **post-MVP target**.
 
 ## Overview
 
-A real-time speech-to-speech AI interviewer that guides users through a website while conducting Jobs-to-be-Done (JTBD) interviews. The system captures voice conversations, user actions, and behavioral signals to understand why users make decisions.
+An AI interviewer that guides users through Jobs-to-be-Done (JTBD) interviews. The system captures conversations, user actions, and behavioral signals to understand why users make decisions. The long-term vision is real-time speech-to-speech; MVP uses text chat.
 
 ---
 
@@ -118,13 +120,14 @@ Thank the user, ask for any final thoughts, and close the session.
 
 ### This System Requires
 
-| Dependency | Purpose |
-|------------|---------|
-| Real-time Voice API | Speech-to-speech conversation |
-| Durable Objects | Session state and WebSocket management |
-| D1 Database | Persistent storage for sessions and transcripts |
-| R2 Storage | Audio recordings and session artifacts |
-| Queue | Async processing of completed sessions |
+| Dependency | Purpose | Status |
+|------------|---------|--------|
+| D1 Database | Session state, messages, transcripts | Active |
+| R2 Storage | Audio recordings and session artifacts | Active |
+| Queue | Async processing of completed sessions | Active |
+| Claude API | JTBD agent conversation | Active |
+| Real-time Voice API | Speech-to-speech conversation | Post-MVP |
+| Durable Objects | Ephemeral session state + WebSocket | Post-MVP |
 
 ### This System Provides
 

@@ -19,15 +19,19 @@ The screener system creates targeted landing pages to recruit specific user segm
 
 ## Key Features
 
+**Implemented:**
 - **Landing Page Generation**: Branded, shareable pages for recruitment campaigns
 - **Screening Questionnaire**: Configurable questions to filter participants
 - **Qualification Rules**: Automatic pass/fail based on answer criteria
-- **Segment Assignment**: Route qualified users to appropriate cohorts
+- **UTM Tracking**: Measure recruitment source effectiveness
+- **Consent Collection**: Recording permissions captured per session
+- **Funnel Counters**: View, start, complete, qualified, disqualified counts
+
+**Post-MVP:**
 - **Calendar Scheduling**: Let participants self-book interview times
 - **Incentive Management**: Gift cards, product credits, or donations
-- **Funnel Analytics**: Track views, starts, completions, and conversions
-- **UTM Tracking**: Measure recruitment source effectiveness
-- **Consent Collection**: GDPR-compliant recording permissions
+- **Segment Assignment**: Route qualified users to appropriate cohorts
+- **Quota Management**: Cap recruitment per segment
 
 ---
 
@@ -107,9 +111,8 @@ The screener system creates targeted landing pages to recruit specific user segm
 
 ### Requires (Inputs)
 - **PRD-01 (Interview System)**: Interview session creation and management
-- **Calendar Integration**: Availability slots and booking
-- **Email Service**: Confirmation and reminder emails
-- **Storage (R2)**: Branding assets (logos)
+- **Calendar Integration**: Availability slots and booking (post-MVP)
+- **Email Service**: Confirmation and reminder emails (post-MVP)
 
 ### Provides (Outputs)
 - **PRD-01 (Interview System)**: Qualified participants ready for interviews

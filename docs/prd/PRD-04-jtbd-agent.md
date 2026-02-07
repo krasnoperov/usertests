@@ -102,7 +102,7 @@ Strong positive or negative reactions. Indicates high-stakes moments and memorab
 ## Dependencies
 
 ### Requires (from other PRDs)
-- **PRD-01 (Voice Interview):** Real-time audio streaming and session management
+- **PRD-01 (Interview System):** Session management and message flow (MVP: HTTP text chat)
 - **PRD-02 (Recording Pipeline):** Audio and interaction capture during interviews
 
 ### Provides (to other PRDs)
