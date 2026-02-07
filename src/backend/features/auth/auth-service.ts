@@ -55,7 +55,7 @@ export class AuthService {
     if (aud && aud.trim().length > 0) {
       return aud;
     }
-    return 'lrsr-api';
+    return 'usertests-api';
   }
 
   getIssuerUrl(): string {

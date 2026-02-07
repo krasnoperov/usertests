@@ -3,6 +3,7 @@ import type { AppContext } from './types';
 import { createAuthMiddleware } from '../middleware/auth-middleware';
 import { createProjectMiddleware } from '../middleware/project-middleware';
 import { createSDKAuthMiddleware } from '../middleware/project-middleware';
+import { ipRateLimit } from '../middleware/rate-limit';
 import { ScreenerDAO } from '../../dao/screener-dao';
 import { SessionDAO } from '../../dao/session-dao';
 
@@ -108,6 +109,136 @@ screenerRoutes.get('/api/projects/:projectId/screeners/:screenerId', auth, proje
   return c.json({ screener, questions, responses });
 });
 
+// Add question to screener
+screenerRoutes.post('/api/projects/:projectId/screeners/:screenerId/questions', auth, projectAccess, async (c) => {
+  const container = c.get('container');
+  const screenerDAO = container.get(ScreenerDAO);
+  const { screenerId } = c.req.param();
+
+  const screener = await screenerDAO.findById(screenerId);
+  if (!screener || screener.project_id !== c.get('projectId')) {
+    return c.json({ error: 'Not found' }, 404);
+  }
+
+  const body = await c.req.json<{
+    question_text: string;
+    question_type: string;
+    required?: boolean;
+    options?: string[];
+    min_value?: number;
+    max_value?: number;
+    qualification_rules?: Record<string, unknown>;
+  }>();
+
+  if (!body.question_text || !body.question_type) {
+    return c.json({ error: 'question_text and question_type are required' }, 400);
+  }
+
+  const existingQuestions = await screenerDAO.getQuestions(screenerId);
+  const question = await screenerDAO.addQuestion({
+    screener_id: screenerId,
+    question_text: body.question_text,
+    question_type: body.question_type,
+    required: body.required,
+    sort_order: existingQuestions.length,
+    options: body.options,
+    min_value: body.min_value,
+    max_value: body.max_value,
+    qualification_rules: body.qualification_rules,
+  });
+
+  return c.json({ question }, 201);
+});
+
+// Update screener question
+screenerRoutes.patch('/api/projects/:projectId/screeners/:screenerId/questions/:questionId', auth, projectAccess, async (c) => {
+  const container = c.get('container');
+  const screenerDAO = container.get(ScreenerDAO);
+  const { screenerId, questionId } = c.req.param();
+
+  const screener = await screenerDAO.findById(screenerId);
+  if (!screener || screener.project_id !== c.get('projectId')) {
+    return c.json({ error: 'Not found' }, 404);
+  }
+
+  const question = await screenerDAO.findQuestionById(questionId);
+  if (!question || question.screener_id !== screenerId) {
+    return c.json({ error: 'Question not found' }, 404);
+  }
+
+  const body = await c.req.json<{
+    question_text?: string;
+    question_type?: string;
+    required?: boolean;
+    options?: string[] | null;
+    min_value?: number | null;
+    max_value?: number | null;
+    qualification_rules?: Record<string, unknown> | null;
+  }>();
+
+  await screenerDAO.updateQuestion(questionId, body);
+  const updated = await screenerDAO.findQuestionById(questionId);
+
+  return c.json({ question: updated });
+});
+
+// Reorder screener questions
+screenerRoutes.post('/api/projects/:projectId/screeners/:screenerId/questions/reorder', auth, projectAccess, async (c) => {
+  const container = c.get('container');
+  const screenerDAO = container.get(ScreenerDAO);
+  const { screenerId } = c.req.param();
+
+  const screener = await screenerDAO.findById(screenerId);
+  if (!screener || screener.project_id !== c.get('projectId')) {
+    return c.json({ error: 'Not found' }, 404);
+  }
+
+  const body = await c.req.json<{ question_ids: string[] }>();
+  if (!Array.isArray(body.question_ids) || body.question_ids.length === 0) {
+    return c.json({ error: 'question_ids array is required' }, 400);
+  }
+
+  const questions = await screenerDAO.getQuestions(screenerId);
+  const existing = new Set(questions.map((q) => q.id));
+  const provided = new Set(body.question_ids);
+  const allValid = body.question_ids.every((id) => existing.has(id));
+  const hasDuplicates = provided.size !== body.question_ids.length;
+
+  if (!allValid || hasDuplicates || body.question_ids.length !== questions.length) {
+    return c.json({ error: 'question_ids must include all existing screener question IDs exactly once' }, 400);
+  }
+
+  await screenerDAO.reorderQuestions(screenerId, body.question_ids);
+  const reordered = await screenerDAO.getQuestions(screenerId);
+
+  return c.json({ questions: reordered });
+});
+
+// Delete screener question
+screenerRoutes.delete('/api/projects/:projectId/screeners/:screenerId/questions/:questionId', auth, projectAccess, async (c) => {
+  const container = c.get('container');
+  const screenerDAO = container.get(ScreenerDAO);
+  const { screenerId, questionId } = c.req.param();
+
+  const screener = await screenerDAO.findById(screenerId);
+  if (!screener || screener.project_id !== c.get('projectId')) {
+    return c.json({ error: 'Not found' }, 404);
+  }
+
+  const question = await screenerDAO.findQuestionById(questionId);
+  if (!question || question.screener_id !== screenerId) {
+    return c.json({ error: 'Question not found' }, 404);
+  }
+
+  await screenerDAO.deleteQuestion(questionId);
+
+  // Normalize sort_order after delete
+  const remaining = await screenerDAO.getQuestions(screenerId);
+  await screenerDAO.reorderQuestions(screenerId, remaining.map((q) => q.id));
+
+  return c.json({ success: true });
+});
+
 // Update screener
 screenerRoutes.patch('/api/projects/:projectId/screeners/:screenerId', auth, projectAccess, async (c) => {
   const container = c.get('container');
@@ -154,7 +285,8 @@ screenerRoutes.delete('/api/projects/:projectId/screeners/:screenerId', auth, pr
 // ========== Public SDK routes (screener landing pages) ==========
 
 // Get public screener data (for rendering the screener page)
-screenerRoutes.get('/api/sdk/screener/:screenerId', sdkAuth, async (c) => {
+// B4: 60 req/min per IP
+screenerRoutes.get('/api/sdk/screener/:screenerId', ipRateLimit(60), sdkAuth, async (c) => {
   const container = c.get('container');
   const screenerDAO = container.get(ScreenerDAO);
   const { screenerId } = c.req.param();
@@ -198,7 +330,8 @@ screenerRoutes.get('/api/sdk/screener/:screenerId', sdkAuth, async (c) => {
 });
 
 // Submit screener response (public)
-screenerRoutes.post('/api/sdk/screener/:screenerId/respond', sdkAuth, async (c) => {
+// B4: 10 req/min per IP
+screenerRoutes.post('/api/sdk/screener/:screenerId/respond', ipRateLimit(10), sdkAuth, async (c) => {
   const container = c.get('container');
   const screenerDAO = container.get(ScreenerDAO);
   const sessionDAO = container.get(SessionDAO);
@@ -219,6 +352,9 @@ screenerRoutes.post('/api/sdk/screener/:screenerId/respond', sdkAuth, async (c) 
     participant_email?: string;
     answers: Record<string, unknown>;
     consent_given?: boolean;
+    consent_recording?: boolean;
+    consent_analytics?: boolean;
+    consent_followup?: boolean;
     utm_source?: string;
     utm_medium?: string;
     utm_campaign?: string;
@@ -246,12 +382,18 @@ screenerRoutes.post('/api/sdk/screener/:screenerId/respond', sdkAuth, async (c) 
     await screenerDAO.incrementCounter(screenerId, 'qualified_count');
 
     // Auto-create session for qualified participants
+    // Consent wiring (B1): map explicit consent fields, default 0 if not granted.
+    // consent_given is a legacy catch-all; granular fields take precedence.
+    const consentFallback = body.consent_given ? 1 : 0;
     const session = await sessionDAO.create({
       project_id: screener.project_id,
       screener_id: screenerId,
       screener_response_id: response.id,
       participant_name: body.participant_name,
       participant_email: body.participant_email,
+      consent_recording: body.consent_recording ? 1 : consentFallback,
+      consent_analytics: body.consent_analytics ? 1 : consentFallback,
+      consent_followup: body.consent_followup ? 1 : consentFallback,
     });
 
     await screenerDAO.linkResponseToSession(response.id, session.id);

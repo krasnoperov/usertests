@@ -13,8 +13,12 @@ import {
   type TaskEvidence,
 } from '../services/harness/spec-generator';
 import {
-  buildPRBody,
   extractTaskIdFromBranch,
+  parseRepoUrl,
+  createBranch,
+  createPR,
+  buildPRBody,
+  type GitHubConfig,
 } from '../services/harness/github-client';
 import { measureImpact } from '../services/harness/impact-tracker';
 import { createDb } from '../../db';
@@ -90,6 +94,7 @@ implementationRoutes.post('/api/projects/:projectId/tasks/:taskId/spec', auth, p
 });
 
 // Create an implementation attempt
+// C1/C2: Creates spec, branch, and PR when not dry_run and GitHub is configured.
 implementationRoutes.post('/api/projects/:projectId/tasks/:taskId/implement', auth, projectAccess, async (c) => {
   const projectId = c.get('projectId');
   const container = c.get('container');
@@ -97,6 +102,7 @@ implementationRoutes.post('/api/projects/:projectId/tasks/:taskId/implement', au
   const implDAO = container.get(ImplementationDAO);
   const signalDAO = container.get(SignalDAO);
   const projectDAO = container.get(ProjectDAO);
+  const env = c.env as Env;
   const { taskId } = c.req.param();
 
   const task = await taskDAO.findById(taskId);
@@ -107,6 +113,10 @@ implementationRoutes.post('/api/projects/:projectId/tasks/:taskId/implement', au
   const body = await c.req.json<{ dry_run?: boolean }>();
 
   const project = await projectDAO.findById(projectId);
+  if (!project) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+
   const signals = await signalDAO.getSignalsByTask(taskId);
 
   const evidence: TaskEvidence = {
@@ -126,7 +136,7 @@ implementationRoutes.post('/api/projects/:projectId/tasks/:taskId/implement', au
 
   const spec = generateSpec(
     evidence,
-    project?.github_repo_url || '',
+    project.github_repo_url || '',
     [],
     '',
   );
@@ -141,7 +151,78 @@ implementationRoutes.post('/api/projects/:projectId/tasks/:taskId/implement', au
   // Update task status
   await taskDAO.updateStatus(taskId, 'in_progress');
 
-  return c.json({ implementation, spec }, 201);
+  // C1/C2: If not dry_run and GitHub is configured, create branch + PR
+  let prInfo: { pr_url: string; pr_number: number; branch_name: string } | null = null;
+
+  if (!body.dry_run && project.github_repo_url && env.GITHUB_TOKEN) {
+    const parsed = parseRepoUrl(project.github_repo_url);
+    if (!parsed) {
+      await implDAO.markFailed(implementation.id, `Invalid GitHub repo URL: ${project.github_repo_url}`);
+      return c.json({ implementation, spec, error: 'Invalid GitHub repo URL' }, 201);
+    }
+
+    const ghConfig: GitHubConfig = {
+      token: env.GITHUB_TOKEN,
+      owner: parsed.owner,
+      repo: parsed.repo,
+      defaultBranch: project.github_default_branch || 'main',
+    };
+
+    // Build branch name: usertests/<taskId>-<slug>
+    const slug = task.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 40);
+    const branchName = `usertests/${taskId}-${slug}`;
+
+    try {
+      await implDAO.markStarted(implementation.id);
+
+      // Create branch
+      await createBranch(ghConfig, branchName);
+
+      // Build PR body with user evidence
+      const prBody = buildPRBody(
+        task.title,
+        taskId,
+        evidence.signals.map(s => s.quote),
+        spec.acceptanceCriteria,
+        buildImplementationPrompt(spec),
+      );
+
+      // Create PR
+      const pr = await createPR(ghConfig, {
+        title: `[UserTests] ${task.title}`,
+        body: prBody,
+        head: branchName,
+        base: ghConfig.defaultBranch,
+        labels: ['usertests', task.task_type],
+      });
+
+      // Persist PR info
+      await implDAO.setPRInfo(implementation.id, pr.url, pr.number, branchName);
+      prInfo = { pr_url: pr.url, pr_number: pr.number, branch_name: branchName };
+
+      // Update task with PR metadata
+      await taskDAO.update(taskId, {
+        implementation_branch: branchName,
+        implementation_pr_url: pr.url,
+        implementation_pr_number: pr.number,
+        status: 'review',
+      });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      await implDAO.markFailed(implementation.id, reason);
+      console.error(`GitHub integration failed for task ${taskId}:`, reason);
+      // Return the implementation even if GitHub failed — spec is still useful
+    }
+  }
+
+  // Re-fetch to include any updates
+  const updated = await implDAO.findById(implementation.id);
+
+  return c.json({ implementation: updated || implementation, spec, pr: prInfo }, 201);
 });
 
 // Get implementation detail
@@ -159,6 +240,7 @@ implementationRoutes.get('/api/projects/:projectId/implementations/:implId', aut
 });
 
 // Measure impact for a deployed task
+// A3: Impact measurement is synchronous API-only for MVP — no queue path.
 implementationRoutes.post('/api/projects/:projectId/tasks/:taskId/measure', auth, projectAccess, async (c) => {
   const container = c.get('container');
   const taskDAO = container.get(TaskDAO);

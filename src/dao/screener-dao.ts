@@ -163,6 +163,69 @@ export class ScreenerDAO {
       .execute();
   }
 
+  async findQuestionById(id: string): Promise<ScreenerQuestion | undefined> {
+    return await this.db
+      .selectFrom('screener_questions')
+      .selectAll()
+      .where('id', '=', id)
+      .executeTakeFirst();
+  }
+
+  async updateQuestion(
+    id: string,
+    data: {
+      question_text?: string;
+      question_type?: string;
+      required?: boolean;
+      sort_order?: number;
+      options?: string[] | null;
+      min_value?: number | null;
+      max_value?: number | null;
+      qualification_rules?: Record<string, unknown> | null;
+    }
+  ): Promise<void> {
+    const updates: Partial<{
+      question_text: string;
+      question_type: string;
+      required: number;
+      sort_order: number;
+      options_json: string | null;
+      min_value: number | null;
+      max_value: number | null;
+      qualification_rules_json: string | null;
+    }> = {};
+
+    if (data.question_text !== undefined) updates.question_text = data.question_text;
+    if (data.question_type !== undefined) updates.question_type = data.question_type;
+    if (data.required !== undefined) updates.required = data.required ? 1 : 0;
+    if (data.sort_order !== undefined) updates.sort_order = data.sort_order;
+    if (data.options !== undefined) updates.options_json = data.options ? JSON.stringify(data.options) : null;
+    if (data.min_value !== undefined) updates.min_value = data.min_value;
+    if (data.max_value !== undefined) updates.max_value = data.max_value;
+    if (data.qualification_rules !== undefined) {
+      updates.qualification_rules_json = data.qualification_rules ? JSON.stringify(data.qualification_rules) : null;
+    }
+
+    await this.db
+      .updateTable('screener_questions')
+      .set(updates)
+      .where('id', '=', id)
+      .execute();
+  }
+
+  async reorderQuestions(screenerId: string, questionIds: string[]): Promise<void> {
+    await this.db.transaction().execute(async (trx) => {
+      for (let i = 0; i < questionIds.length; i++) {
+        await trx
+          .updateTable('screener_questions')
+          .set({ sort_order: i })
+          .where('id', '=', questionIds[i])
+          .where('screener_id', '=', screenerId)
+          .execute();
+      }
+    });
+  }
+
   async deleteQuestion(id: string): Promise<void> {
     await this.db.deleteFrom('screener_questions').where('id', '=', id).execute();
   }

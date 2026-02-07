@@ -3,6 +3,7 @@ import type { AppContext } from './types';
 import { createAuthMiddleware } from '../middleware/auth-middleware';
 import { createProjectMiddleware } from '../middleware/project-middleware';
 import { SessionDAO } from '../../dao/session-dao';
+import type { Env } from '../../core/types';
 
 const sessionRoutes = new Hono<AppContext>();
 const auth = createAuthMiddleware();
@@ -162,6 +163,43 @@ sessionRoutes.post('/api/projects/:projectId/sessions/:sessionId/events', auth, 
 
   await sessionDAO.addEvent(sessionId, body.event_type, body.timestamp_ms, body.data);
   return c.json({ success: true }, 201);
+});
+
+// Reprocess a completed session (A4)
+// Clears failed markers and re-queues for processing.
+sessionRoutes.post('/api/projects/:projectId/sessions/:sessionId/reprocess', auth, projectAccess, async (c) => {
+  const container = c.get('container');
+  const sessionDAO = container.get(SessionDAO);
+  const env = c.env as Env;
+  const { sessionId } = c.req.param();
+
+  const session = await sessionDAO.findById(sessionId);
+  if (!session || session.project_id !== c.get('projectId')) {
+    return c.json({ error: 'Not found' }, 404);
+  }
+
+  if (session.status !== 'completed') {
+    return c.json({ error: 'Only completed sessions can be reprocessed' }, 400);
+  }
+
+  // Clear previous processing markers so processSession can run again
+  // We delete failed and processed events to allow a fresh run
+  await sessionDAO.deleteEvents(sessionId, 'session.processing_failed');
+  await sessionDAO.deleteEvents(sessionId, 'session.processing_started');
+  await sessionDAO.deleteEvents(sessionId, 'session.processed');
+
+  // Re-queue for processing
+  if (!env.PROCESSING_QUEUE) {
+    return c.json({ error: 'Processing queue not available' }, 503);
+  }
+
+  await env.PROCESSING_QUEUE.send({
+    type: 'session.completed',
+    sessionId,
+    projectId: session.project_id,
+  });
+
+  return c.json({ success: true, message: 'Session queued for reprocessing' });
 });
 
 // Delete session

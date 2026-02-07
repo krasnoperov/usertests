@@ -11,6 +11,9 @@ export interface CreateSessionInput {
   participant_name?: string;
   participant_email?: string;
   interview_mode?: string;
+  consent_recording?: number;
+  consent_analytics?: number;
+  consent_followup?: number;
 }
 
 export interface ListSessionsOptions {
@@ -49,9 +52,9 @@ export class SessionDAO {
       signal_count: 0,
       talk_ratio: null,
       quality_score: null,
-      consent_recording: 0,
-      consent_analytics: 0,
-      consent_followup: 0,
+      consent_recording: input.consent_recording ?? 0,
+      consent_analytics: input.consent_analytics ?? 0,
+      consent_followup: input.consent_followup ?? 0,
       cost_audio_cents: 0,
       cost_transcription_cents: 0,
       cost_analysis_cents: 0,
@@ -176,6 +179,26 @@ export class SessionDAO {
     }
 
     return await query.execute();
+  }
+
+  async deleteEvents(sessionId: string, eventType: string): Promise<void> {
+    await this.db
+      .deleteFrom('session_events')
+      .where('session_id', '=', sessionId)
+      .where('event_type', '=', eventType)
+      .execute();
+  }
+
+  async hasEvent(sessionId: string, eventType: string): Promise<boolean> {
+    const existing = await this.db
+      .selectFrom('session_events')
+      .select('id')
+      .where('session_id', '=', sessionId)
+      .where('event_type', '=', eventType)
+      .limit(1)
+      .executeTakeFirst();
+
+    return !!existing;
   }
 
   // --- Audio Chunks ---

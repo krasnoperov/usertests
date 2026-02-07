@@ -18,7 +18,7 @@ const createAuthService = async (overrides: Partial<Env> = {}) => {
     OIDC_PRIVATE_KEY: privatePem,
     OIDC_PUBLIC_KEY: publicPem,
     OIDC_KEY_ID: 'test-key',
-    OIDC_AUDIENCE: 'lrsr-api',
+    OIDC_AUDIENCE: 'usertests-api',
     OIDC_ISSUER: 'https://issuer.test',
     OIDC_ALLOWED_CLIENT_IDS: JSON.stringify(['lrsr-cli', 'qa-cli']),
     GOOGLE_CLIENT_ID: 'google-client-id',
@@ -37,7 +37,7 @@ test('AuthService issues and verifies JWTs', async () => {
   const decoded = decodeJwt(token);
 
   assert.strictEqual(decoded.sub, '123');
-  assert.strictEqual(decoded.aud, 'lrsr-api');
+  assert.strictEqual(decoded.aud, 'usertests-api');
   assert.strictEqual(decoded.iss, 'https://issuer.test');
 
   const payload = await authService.verifyJWT(token);

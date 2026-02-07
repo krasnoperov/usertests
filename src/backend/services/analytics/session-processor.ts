@@ -7,7 +7,6 @@
 
 import 'reflect-metadata';
 import type { Env } from '../../../core/types';
-import { createDb } from '../../../db';
 import { createContainer } from '../../../core/container';
 import { SignalDAO } from '../../../dao/signal-dao';
 import { SessionDAO } from '../../../dao/session-dao';
@@ -43,12 +42,66 @@ export async function processSession(
     throw new Error(`Session not found: ${input.sessionId}`);
   }
 
+  const nowTimestampMs = session.started_at
+    ? Math.max(0, Date.now() - new Date(session.started_at).getTime())
+    : 0;
+
+  // --- Canonical status markers (A2) ---
+  // Idempotency: skip if already processed
+  const alreadyProcessed = await sessionDAO.hasEvent(input.sessionId, 'session.processed');
+  if (alreadyProcessed) {
+    console.log(`Session ${input.sessionId} already processed, skipping`);
+    return { signalCount: session.signal_count ?? 0, tasksSuggested: 0 };
+  }
+
+  // Mark processing started
+  await sessionDAO.addEvent(input.sessionId, 'session.processing_started', nowTimestampMs, {
+    attempt_at: new Date().toISOString(),
+  });
+
+  try {
+    return await _processSessionInner(input, env, session, sessionDAO, signalDAO, taskDAO, nowTimestampMs);
+  } catch (error) {
+    // Mark processing failed — terminal marker
+    const reason = error instanceof Error ? error.message : String(error);
+    await sessionDAO.addEvent(input.sessionId, 'session.processing_failed', nowTimestampMs, {
+      reason,
+      failed_at: new Date().toISOString(),
+    });
+    console.error(`Processing failed for session ${input.sessionId}:`, reason);
+    throw error; // Re-throw so queue handler can decide retry vs ack
+  }
+}
+
+/**
+ * Inner processing logic, separated so the outer function handles
+ * the canonical status markers and error boundaries cleanly.
+ */
+async function _processSessionInner(
+  input: ProcessSessionInput,
+  env: Env,
+  session: NonNullable<Awaited<ReturnType<SessionDAO['findById']>>>,
+  sessionDAO: SessionDAO,
+  signalDAO: SignalDAO,
+  taskDAO: TaskDAO,
+  nowTimestampMs: number,
+): Promise<{ signalCount: number; tasksSuggested: number }> {
+  const markProcessed = async (status: string, data?: Record<string, unknown>) => {
+    await sessionDAO.addEvent(
+      input.sessionId,
+      'session.processed',
+      nowTimestampMs,
+      { status, ...(data || {}) },
+    );
+  };
+
   // 1. Fetch messages and events
   const messages = await sessionDAO.getMessages(input.sessionId);
   const events = await sessionDAO.getEvents(input.sessionId);
 
   if (messages.length === 0) {
     console.log(`Session ${input.sessionId} has no messages, skipping`);
+    await markProcessed('skipped_no_messages');
     return { signalCount: 0, tasksSuggested: 0 };
   }
 
@@ -73,6 +126,7 @@ export async function processSession(
   // 4. Extract signals
   if (!env.ANTHROPIC_API_KEY) {
     console.warn('ANTHROPIC_API_KEY not set, skipping signal extraction');
+    await markProcessed('skipped_no_anthropic_key');
     return { signalCount: 0, tasksSuggested: 0 };
   }
 
@@ -119,6 +173,11 @@ export async function processSession(
   // 7. Update session
   await sessionDAO.update(input.sessionId, {
     signal_count: signals.length,
+  });
+
+  await markProcessed('processed', {
+    signal_count: signals.length,
+    tasks_suggested: tasksSuggested,
   });
 
   console.log(`Processed session ${input.sessionId}: ${signals.length} signals, ${tasksSuggested} tasks suggested`);

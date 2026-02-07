@@ -45,11 +45,11 @@ export interface Env {
 }
 
 // Queue message types
+// NOTE: impact.measure is intentionally synchronous API-only for MVP (A3).
 export type QueueMessage =
   | SessionCompletedMessage
   | TranscribeAudioMessage
-  | ExtractSignalsMessage
-  | MeasureImpactMessage;
+  | ExtractSignalsMessage;
 
 export interface SessionCompletedMessage {
   type: 'session.completed';
@@ -70,8 +70,5 @@ export interface ExtractSignalsMessage {
   projectId: string;
 }
 
-export interface MeasureImpactMessage {
-  type: 'impact.measure';
-  taskId: string;
-  projectId: string;
-}
+// MVP: impact.measure is synchronous API-only — no queue message.
+// See POST /api/projects/:projectId/tasks/:taskId/measure

@@ -4,7 +4,7 @@ import type { Env } from '../../core/types';
 
 // Configuration - Start simple, can tighten if abuse occurs
 const LIMITS = {
-  MAX_FILE_SIZE_MB: 500,
+  MAX_FILE_SIZE_MB: 25, // B4: tightened from 500MB — max screen chunk is 25MB
   MIN_INTERVAL_SECONDS: 10, // Basic rate limiting
   ALLOWED_EXTENSIONS: ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'webm'],
   ALLOWED_MIME_TYPES: [
