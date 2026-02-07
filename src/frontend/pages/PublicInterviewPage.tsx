@@ -36,6 +36,7 @@ export default function PublicInterviewPage() {
   const [micPermission, setMicPermission] = useState<PermissionState>('unknown');
   const [screenPermission, setScreenPermission] = useState<PermissionState>('unknown');
   const [recordingState, setRecordingState] = useState('idle');
+  const [streamWarning, setStreamWarning] = useState<string | null>(null);
 
   useEffect(() => {
     if (!sessionId) {
@@ -84,6 +85,17 @@ export default function PublicInterviewPage() {
       captureNavigation: false,
       onReady: () => setRecordingState('ready'),
       onError: (e) => setError(e.message),
+      onRecordingStarted: (streams) => {
+        setRecordingState('recording');
+        if (!streams.screen) {
+          setStreamWarning('Screen capture unavailable — recording audio only.');
+        }
+      },
+      onStreamError: (stream, err) => {
+        if (stream === 'screen') {
+          setStreamWarning(`Screen capture failed: ${err.message}. Recording audio only.`);
+        }
+      },
     });
 
     recorderRef.current = recorder;
@@ -127,6 +139,7 @@ export default function PublicInterviewPage() {
     if (!sessionId || !key || !session) return;
 
     setError(null);
+    setStreamWarning(null);
 
     try {
       if (participantName || participantEmail) {
@@ -288,6 +301,8 @@ export default function PublicInterviewPage() {
         <p className={styles.info}>
           Mic: {micPermission} · Screen: {screenPermission}
         </p>
+
+        {streamWarning && <p className={styles.info}>{streamWarning}</p>}
 
         {error && <p className={styles.error}>{error}</p>}
 

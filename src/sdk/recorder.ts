@@ -20,6 +20,8 @@ export interface RecorderConfig {
   onReady?: () => void;
   onError?: (error: Error) => void;
   onSessionCreated?: (sessionId: string) => void;
+  onRecordingStarted?: (streams: { audio: boolean; screen: boolean }) => void;
+  onStreamError?: (stream: 'audio' | 'screen', error: Error) => void;
 }
 
 export interface RecordingEvent {
@@ -74,6 +76,8 @@ export class UserTestsRecorder {
       onReady: () => {},
       onError: () => {},
       onSessionCreated: () => {},
+      onRecordingStarted: () => {},
+      onStreamError: () => {},
       ...config,
     };
 
@@ -114,16 +118,7 @@ export class UserTestsRecorder {
       errors: [],
     };
 
-    if (request.audio) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach((track) => track.stop());
-        result.audio = true;
-      } catch (e) {
-        result.errors.push(`Microphone permission denied: ${String(e)}`);
-      }
-    }
-
+    // Screen first — getDisplayMedia requires transient user activation
     if (request.screen) {
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({
@@ -134,6 +129,16 @@ export class UserTestsRecorder {
         result.screen = true;
       } catch (e) {
         result.errors.push(`Screen permission denied: ${String(e)}`);
+      }
+    }
+
+    if (request.audio) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+        result.audio = true;
+      } catch (e) {
+        result.errors.push(`Microphone permission denied: ${String(e)}`);
       }
     }
 
@@ -153,14 +158,35 @@ export class UserTestsRecorder {
       throw new Error(`Cannot start from state: ${this.state}`);
     }
 
+    // Acquire screen FIRST — getDisplayMedia requires transient user activation
+    let screenAcquired = false;
+    if (this.config.captureScreen) {
+      screenAcquired = await this.acquireScreenStream();
+    }
+
+    // getUserMedia doesn't need transient activation, safe to call second
+    const audioAcquired = await this.acquireAudioStream();
+
+    if (!audioAcquired) {
+      // Audio is required — clean up screen stream if acquired
+      if (this.screenStream) {
+        this.screenStream.getTracks().forEach((t) => t.stop());
+        this.screenStream = null;
+      }
+      throw new Error('Microphone access is required to start recording');
+    }
+
+    // Only transition to recording AFTER streams are acquired
     this.startTime = Date.now();
     this.state = 'recording';
 
-    await this.startAudioRecording();
-
-    if (this.config.captureScreen) {
-      await this.startScreenRecording();
+    // Wire up MediaRecorders for acquired streams
+    this.startAudioMediaRecorder();
+    if (screenAcquired && this.screenStream) {
+      this.startScreenMediaRecorder();
     }
+
+    this.config.onRecordingStarted({ audio: audioAcquired, screen: screenAcquired });
 
     if (this.config.captureClicks) {
       this.startClickTracking();
@@ -283,7 +309,7 @@ export class UserTestsRecorder {
     }
   }
 
-  private async startAudioRecording(): Promise<void> {
+  private async acquireAudioStream(): Promise<boolean> {
     try {
       this.audioStream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -292,24 +318,31 @@ export class UserTestsRecorder {
           sampleRate: 16000,
         },
       });
-
-      this.audioRecorder = new MediaRecorder(this.audioStream, {
-        mimeType: this.getSupportedAudioMimeType(),
-      });
-
-      this.audioRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          void this.uploadAudioChunk(e.data);
-        }
-      };
-
-      this.audioRecorder.start(5000);
+      return true;
     } catch (e) {
-      console.warn('Audio recording not available:', e);
+      const err = e instanceof Error ? e : new Error(String(e));
+      this.config.onStreamError('audio', err);
+      return false;
     }
   }
 
-  private async startScreenRecording(): Promise<void> {
+  private startAudioMediaRecorder(): void {
+    if (!this.audioStream) return;
+
+    this.audioRecorder = new MediaRecorder(this.audioStream, {
+      mimeType: this.getSupportedAudioMimeType(),
+    });
+
+    this.audioRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) {
+        void this.uploadAudioChunk(e.data);
+      }
+    };
+
+    this.audioRecorder.start(5000);
+  }
+
+  private async acquireScreenStream(): Promise<boolean> {
     try {
       this.screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: {
@@ -317,21 +350,28 @@ export class UserTestsRecorder {
         },
         audio: false,
       });
-
-      this.screenRecorder = new MediaRecorder(this.screenStream, {
-        mimeType: this.getSupportedVideoMimeType(),
-      });
-
-      this.screenRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          void this.uploadScreenChunk(e.data);
-        }
-      };
-
-      this.screenRecorder.start(5000);
+      return true;
     } catch (e) {
-      console.warn('Screen recording not available:', e);
+      const err = e instanceof Error ? e : new Error(String(e));
+      this.config.onStreamError('screen', err);
+      return false;
     }
+  }
+
+  private startScreenMediaRecorder(): void {
+    if (!this.screenStream) return;
+
+    this.screenRecorder = new MediaRecorder(this.screenStream, {
+      mimeType: this.getSupportedVideoMimeType(),
+    });
+
+    this.screenRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) {
+        void this.uploadScreenChunk(e.data);
+      }
+    };
+
+    this.screenRecorder.start(5000);
   }
 
   private getElapsedMs(): number {
